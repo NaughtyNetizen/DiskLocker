@@ -1,0 +1,18 @@
+# Build output
+bin/
+obj/
+publish/
+Release/
+
+# Runtime log
+debug.log
+*.log
+
+# Visual Studio
+*.user
+*.suo
+.vs/
+
+# OS files
+Thumbs.db
+.DS_Store

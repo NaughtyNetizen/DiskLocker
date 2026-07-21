@@ -1,0 +1,139 @@
+using System.Windows.Threading;
+using Microsoft.Win32;
+using DiskLocker.Native;
+using static DiskLocker.Native.WinApi;
+
+namespace DiskLocker.Services;
+
+/// <summary>
+/// 自动锁定服务
+/// 支持三种自动锁定触发方式：无操作超时、系统锁屏、系统休眠
+/// </summary>
+public class AutoLockService : IDisposable
+{
+    private readonly DispatcherTimer _idleTimer;
+    private bool _disposed;
+
+    /// <summary>触发自动锁定</summary>
+    public event Action? AutoLockTriggered;
+
+    /// <summary>无操作超时时间（分钟，0 = 禁用）</summary>
+    public int IdleTimeoutMinutes { get; set; } = 30;
+
+    /// <summary>是否监听系统锁屏</summary>
+    public bool LockOnScreenLock { get; set; } = true;
+
+    /// <summary>是否监听系统休眠</summary>
+    public bool LockOnSleep { get; set; } = true;
+
+    /// <summary>是否已锁定（避免重复锁定）</summary>
+    public bool IsLocked { get; set; }
+
+    public AutoLockService()
+    {
+        _idleTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(5) // 每 5 秒检查一次空闲时间
+        };
+        _idleTimer.Tick += OnIdleTimerTick;
+
+        // 注册系统事件
+        SystemEvents.SessionSwitch += OnSessionSwitch;
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
+    }
+
+    /// <summary>启动自动锁定服务</summary>
+    public void Start()
+    {
+        if (IdleTimeoutMinutes > 0)
+            _idleTimer.Start();
+    }
+
+    /// <summary>停止自动锁定服务</summary>
+    public void Stop()
+    {
+        _idleTimer.Stop();
+    }
+
+    /// <summary>重置锁定状态（解锁后调用）</summary>
+    public void ResetLockState()
+    {
+        IsLocked = false;
+    }
+
+    private void OnIdleTimerTick(object? sender, EventArgs e)
+    {
+        if (IsLocked || IdleTimeoutMinutes <= 0)
+            return;
+
+        var idleMinutes = GetIdleTimeMinutes();
+        if (idleMinutes >= IdleTimeoutMinutes)
+        {
+            IsLocked = true;
+            AutoLockTriggered?.Invoke();
+        }
+    }
+
+    /// <summary>获取系统空闲时间（分钟）</summary>
+    public static double GetIdleTimeMinutes()
+    {
+        var info = new LASTINPUTINFO();
+        info.cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<LASTINPUTINFO>();
+        if (GetLastInputInfo(ref info))
+        {
+            var currentTime = GetTickCount();
+            // 处理 GetTickCount 溢出（约 49 天后回绕）
+            var idleMs = currentTime >= info.dwTime
+                ? currentTime - info.dwTime
+                : (uint.MaxValue - info.dwTime) + currentTime;
+            return idleMs / 60000.0;
+        }
+        return 0;
+    }
+
+    private void OnSessionSwitch(object? sender, SessionSwitchEventArgs e)
+    {
+        if (!LockOnScreenLock) return;
+
+        if (e.Reason == SessionSwitchReason.SessionLock ||
+            e.Reason == SessionSwitchReason.ConsoleDisconnect)
+        {
+            IsLocked = true;
+            AutoLockTriggered?.Invoke();
+        }
+    }
+
+    private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
+    {
+        if (!LockOnSleep) return;
+
+        if (e.Mode == PowerModes.Suspend)
+        {
+            IsLocked = true;
+            AutoLockTriggered?.Invoke();
+        }
+    }
+
+    /// <summary>更新配置</summary>
+    public void UpdateSettings(int idleTimeoutMinutes, bool lockOnScreenLock, bool lockOnSleep)
+    {
+        IdleTimeoutMinutes = idleTimeoutMinutes;
+        LockOnScreenLock = lockOnScreenLock;
+        LockOnSleep = lockOnSleep;
+
+        if (idleTimeoutMinutes > 0 && !_idleTimer.IsEnabled)
+            _idleTimer.Start();
+        else if (idleTimeoutMinutes <= 0 && _idleTimer.IsEnabled)
+            _idleTimer.Stop();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        _idleTimer.Stop();
+        SystemEvents.SessionSwitch -= OnSessionSwitch;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+    }
+}
