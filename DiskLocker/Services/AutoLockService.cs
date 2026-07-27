@@ -29,6 +29,9 @@ public class AutoLockService : IDisposable
     /// <summary>是否已锁定（避免重复锁定）</summary>
     public bool IsLocked { get; set; }
 
+    /// <summary>解锁后的宽限期截止时间（在此期间不触发自动锁定）</summary>
+    private DateTime _gracePeriodEnd = DateTime.MinValue;
+
     public AutoLockService()
     {
         _idleTimer = new DispatcherTimer
@@ -61,9 +64,21 @@ public class AutoLockService : IDisposable
         IsLocked = false;
     }
 
+    /// <summary>
+    /// 给予解锁宽限期（默认 60 秒），防止解锁后立即被自动锁定重新锁定
+    /// </summary>
+    public void GrantGracePeriod(int seconds = 60)
+    {
+        _gracePeriodEnd = DateTime.UtcNow.AddSeconds(seconds);
+    }
+
     private void OnIdleTimerTick(object? sender, EventArgs e)
     {
         if (IsLocked || IdleTimeoutMinutes <= 0)
+            return;
+
+        // 宽限期内不触发自动锁定
+        if (DateTime.UtcNow < _gracePeriodEnd)
             return;
 
         var idleMinutes = GetIdleTimeMinutes();

@@ -62,10 +62,13 @@ public partial class PasswordDialog : Window
             return;
         }
 
+        // 刷新磁盘连接状态（防止瞬间误判）
+        _lockManager.RefreshConnectionState();
+
         // 检查磁盘是否已连接
         if (!_lockManager.IsTargetConnected)
         {
-            StatusText.Text = "目标硬盘未连接，无需解锁";
+            StatusText.Text = "目标硬盘未连接，无法解锁";
             return;
         }
 

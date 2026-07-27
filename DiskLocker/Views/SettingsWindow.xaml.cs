@@ -183,9 +183,9 @@ public partial class SettingsWindow : Window
         // 目标盘数量
         TargetCountText.Text = $"{settings.TargetDisks.Count} 台";
 
-        // 按钮状态
+        // 按钮状态：锁定时始终允许尝试解锁（即使连接状态瞬间为 false）
         LockButton.IsEnabled = isConnected && !isLocked;
-        UnlockButton.IsEnabled = isConnected && isLocked;
+        UnlockButton.IsEnabled = isLocked;
     }
 
     // ===================== 磁盘卡片操作 =====================
@@ -313,5 +313,15 @@ public partial class SettingsWindow : Window
         var enabled = AutoStartCheckBox.IsChecked == true;
         _lockManager.UpdateAutoStart(enabled);
         StatusText.Text = enabled ? "已启用开机自启" : "已禁用开机自启";
+    }
+
+    private void RightPanelScrollViewer_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+    {
+        if (sender is ScrollViewer scrollViewer)
+        {
+            var offset = scrollViewer.VerticalOffset - e.Delta;
+            scrollViewer.ScrollToVerticalOffset(Math.Max(0, Math.Min(offset, scrollViewer.ScrollableHeight)));
+            e.Handled = true;
+        }
     }
 }

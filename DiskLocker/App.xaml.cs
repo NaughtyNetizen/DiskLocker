@@ -232,16 +232,20 @@ public partial class App : Application
     {
         if (_lockManager == null || _isShuttingDown) return;
 
-        if (!_lockManager.IsTargetConnected)
-        {
-            ShowBalloon("目标硬盘未连接", ToolTipIcon.Warning);
-            return;
-        }
+        SimpleLogger.Log($"ShowUnlockDialog: IsLocked={_lockManager.IsLocked}, IsTargetConnected={_lockManager.IsTargetConnected}");
 
         if (!_lockManager.IsLocked)
         {
             ShowBalloon("硬盘已解锁，无需操作", ToolTipIcon.Info);
             return;
+        }
+
+        // 即使 IsTargetConnected 瞬间为 false，只要处于锁定状态就允许尝试解锁
+        // （RestoreDiskInternal 内部有自己的磁盘检测和回退方案）
+        if (!_lockManager.IsTargetConnected)
+        {
+            SimpleLogger.Log("ShowUnlockDialog: IsTargetConnected=false but IsLocked=true, refreshing connection state...");
+            _lockManager.RefreshConnectionState();
         }
 
         // 显示密码对话框

@@ -236,9 +236,10 @@
         </ScrollViewer>
 
         <!-- ============ 右列：设置 ============ -->
-        <ScrollViewer Grid.Column="2" Style="{StaticResource ModernScrollViewer}"
+        <ScrollViewer x:Name="RightPanelScrollViewer" Grid.Column="2" Style="{StaticResource ModernScrollViewer}"
                       HorizontalScrollBarVisibility="Disabled"
-                      VerticalScrollBarVisibility="Auto">
+                      VerticalScrollBarVisibility="Auto"
+                      PreviewMouseWheel="RightPanelScrollViewer_PreviewMouseWheel">
             <StackPanel>
                 <!-- 自动锁定 -->
                 <Border Style="{StaticResource ModernCard}" Margin="0,0,0,16">

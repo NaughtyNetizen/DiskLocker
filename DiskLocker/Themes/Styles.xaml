@@ -559,50 +559,107 @@
         </Setter>
     </Style>
 
-    <!-- ======================== 滚动条 Thumb（圆角、悬停/拖拽反馈） ======================== -->
+    <!-- ======================== 滚动条 Thumb（垂直，Win11 overlay 圆角 + 悬停加粗） ======================== -->
+    <!-- thumb 默认 6px 宽、半透明灰；鼠标进入 ScrollBar 任意位置时加宽至 10px、颜色加深；带平滑动画 -->
     <Style x:Key="ModernScrollBarThumb" TargetType="Thumb">
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Width" Value="6" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Border x:Name="thumb"
-                            Background="#BFBFBF"
-                            CornerRadius="4"
-                            Margin="3,2" />
+                    <!-- Border 内部居中显示 thumb；外层透明 Border 撑满 14px 热区，让点击拖拽更易命中 -->
+                    <Border Background="Transparent">
+                        <Border x:Name="thumb"
+                                Background="#A8A8A8"
+                                CornerRadius="3"
+                                HorizontalAlignment="Center"
+                                Width="{TemplateBinding Width}" />
+                    </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Trigger.EnterActions>
                                 <BeginStoryboard>
                                     <Storyboard>
-                                        <ColorAnimation Duration="0:0:0.12"
+                                        <ColorAnimation Duration="0:0:0.15"
                                             Storyboard.TargetName="thumb"
                                             Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                            To="#999999" />
+                                            To="#5A5A5A" />
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
                             <Trigger.ExitActions>
                                 <BeginStoryboard>
                                     <Storyboard>
-                                        <ColorAnimation Duration="0:0:0.12"
+                                        <ColorAnimation Duration="0:0:0.15"
                                             Storyboard.TargetName="thumb"
                                             Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                            To="#BFBFBF" />
+                                            To="#A8A8A8" />
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsDragging" Value="True">
-                            <Setter TargetName="thumb" Property="Background" Value="#737373" />
+                            <Setter TargetName="thumb" Property="Background" Value="#404040" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <Style.Triggers>
+            <!-- 鼠标在 ScrollBar 14px 热区任意位置 → thumb 加宽 + 颜色加深，便于精准抓取 -->
+            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="True">
+                <DataTrigger.EnterActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Duration="0:0:0.15"
+                                Storyboard.TargetProperty="Width"
+                                To="10" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.EnterActions>
+                <DataTrigger.ExitActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Duration="0:0:0.15"
+                                Storyboard.TargetProperty="Width"
+                                To="6" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.ExitActions>
+            </DataTrigger>
+        </Style.Triggers>
     </Style>
 
-    <!-- ======================== 垂直滚动条（宽 14px，易抓取） ======================== -->
+    <!-- ======================== 滚动条 Thumb（水平，与垂直对称） ======================== -->
+    <Style x:Key="ModernHorizontalScrollBarThumb" TargetType="Thumb" BasedOn="{StaticResource ModernScrollBarThumb}">
+        <Setter Property="Width" Value="Auto" />
+        <Setter Property="Height" Value="6" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="True">
+                <DataTrigger.EnterActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Duration="0:0:0.15"
+                                Storyboard.TargetProperty="Height"
+                                To="10" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.EnterActions>
+                <DataTrigger.ExitActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Duration="0:0:0.15"
+                                Storyboard.TargetProperty="Height"
+                                To="6" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.ExitActions>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ======================== 垂直滚动条（14px 热区，透明轨道，thumb overlay 居中） ======================== -->
     <Style x:Key="ModernVerticalScrollBar" TargetType="ScrollBar">
         <Setter Property="Width" Value="14" />
         <Setter Property="MinWidth" Value="14" />
@@ -610,9 +667,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ScrollBar">
-                    <Border x:Name="trackBg"
-                            Background="Transparent"
-                            CornerRadius="7">
+                    <Border x:Name="trackBg" Background="Transparent">
                         <Track x:Name="PART_Track" IsDirectionReversed="True">
                             <Track.Thumb>
                                 <Thumb Style="{StaticResource ModernScrollBarThumb}" />
@@ -621,7 +676,26 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="trackBg" Property="Background" Value="#33000000" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Duration="0:0:0.15"
+                                            Storyboard.TargetName="trackBg"
+                                            Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                            To="#0A000000" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Duration="0:0:0.2"
+                                            Storyboard.TargetName="trackBg"
+                                            Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                            To="Transparent" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -629,24 +703,71 @@
         </Setter>
     </Style>
 
-    <!-- ======================== ScrollViewer（Win11 风格滚动条） ======================== -->
+    <!-- ======================== 水平滚动条（与垂直对称） ======================== -->
+    <Style x:Key="ModernHorizontalScrollBar" TargetType="ScrollBar">
+        <Setter Property="Height" Value="14" />
+        <Setter Property="MinHeight" Value="14" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Border x:Name="trackBg" Background="Transparent">
+                        <Track x:Name="PART_Track" IsDirectionReversed="False">
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource ModernHorizontalScrollBarThumb}" />
+                            </Track.Thumb>
+                        </Track>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Duration="0:0:0.15"
+                                            Storyboard.TargetName="trackBg"
+                                            Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                            To="#0A000000" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Duration="0:0:0.2"
+                                            Storyboard.TargetName="trackBg"
+                                            Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                            To="Transparent" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ======================== ScrollViewer（Win11 overlay 风格，滚动条悬浮不占布局） ======================== -->
     <Style x:Key="ModernScrollViewer" TargetType="ScrollViewer">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ScrollViewer">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <ScrollContentPresenter Grid.Column="0" />
+                        <ScrollContentPresenter x:Name="PART_ScrollContentPresenter" />
                         <ScrollBar x:Name="PART_VerticalScrollBar"
-                                   Grid.Column="1"
+                                   HorizontalAlignment="Right"
                                    Style="{StaticResource ModernVerticalScrollBar}"
                                    Minimum="0" Maximum="1"
                                    Value="{TemplateBinding VerticalOffset}"
                                    ViewportSize="{TemplateBinding ViewportHeight}"
                                    Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
+                        <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                   VerticalAlignment="Bottom"
+                                   Style="{StaticResource ModernHorizontalScrollBar}"
+                                   Minimum="0" Maximum="1"
+                                   Value="{TemplateBinding HorizontalOffset}"
+                                   ViewportSize="{TemplateBinding ViewportWidth}"
+                                   Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}" />
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>

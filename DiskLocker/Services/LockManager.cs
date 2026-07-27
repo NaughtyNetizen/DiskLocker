@@ -124,6 +124,49 @@ public class LockManager : IDisposable
             }
         }
 
+        // 关键修复：检测“盘符已隐藏但 GUID 丢失”的死锁状态
+        // 场景：上次会话锁定了磁盘，但 HiddenVolumeGuids 被错误清除
+        // 表现：目标磁盘无盘符 + 无存储 GUID → 实际已锁定但应用不知道
+        if (IsTargetConnected && !IsLocked)
+        {
+            var anyDiskHasLetters = false;
+            var allConnectedDisksHaveNoLetters = true;
+
+            foreach (var target in settings.TargetDisks)
+            {
+                if (!Disk.IsDiskConnected(target.SerialNumber, target.PnpDeviceId))
+                    continue; // 跳过未连接的磁盘
+
+                var letters = Disk.GetDriveLettersForDisk(target.SerialNumber);
+                if (letters.Count > 0)
+                {
+                    anyDiskHasLetters = true;
+                    allConnectedDisksHaveNoLetters = false;
+                }
+            }
+
+            if (!anyDiskHasLetters && allConnectedDisksHaveNoLetters)
+            {
+                // 所有已连接的目标磁盘都没有盘符，但也没有存储的 GUID
+                // 说明磁盘实际处于锁定状态，只是 GUID 丢失了
+                SimpleLogger.Log("Initialize: DETECTED LOST LOCK STATE - disks have no letters but no stored GUIDs, recovering...");
+                var recoveredGuids = RecoverVolumeGuids();
+                if (recoveredGuids.Count > 0)
+                {
+                    Settings.Current.HiddenVolumeGuids = recoveredGuids;
+                    Settings.Save();
+                    IsLocked = true;
+                    if (_autoLockService != null)
+                        _autoLockService.IsLocked = true;
+                    SimpleLogger.Log($"Initialize: recovered {recoveredGuids.Count} volume GUID(s), state restored to LOCKED");
+                }
+                else
+                {
+                    SimpleLogger.Log("Initialize: WARNING - could not recover volume GUIDs");
+                }
+            }
+        }
+
         // 如果目标磁盘已连接且未锁定，自动锁定
         if (IsTargetConnected && !IsLocked)
         {
@@ -143,6 +186,15 @@ public class LockManager : IDisposable
                 return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// 刷新目标磁盘连接状态（用于解锁前纠正可能的瞬间误判）
+    /// </summary>
+    public void RefreshConnectionState()
+    {
+        IsTargetConnected = CheckAnyTargetConnected();
+        SimpleLogger.Log($"RefreshConnectionState: IsTargetConnected={IsTargetConnected}");
     }
 
     /// <summary>启动/重启设备监听</summary>
@@ -247,7 +299,18 @@ public class LockManager : IDisposable
         SimpleLogger.Log("UnlockDisk: password verified, restoring disks...");
         lock (_stateLock)
         {
-            return RestoreDiskInternal() ? UnlockResult.Success : UnlockResult.RestoreFailed;
+            // 解锁前刷新连接状态（防止瞬间误判）
+            IsTargetConnected = CheckAnyTargetConnected();
+
+            var result = RestoreDiskInternal() ? UnlockResult.Success : UnlockResult.RestoreFailed;
+
+            // 解锁成功后给予宽限期，避免自动锁定立即重新锁定
+            if (result == UnlockResult.Success && _autoLockService != null)
+            {
+                _autoLockService.GrantGracePeriod();
+            }
+
+            return result;
         }
     }
 
@@ -358,6 +421,49 @@ public class LockManager : IDisposable
     }
 
     /// <summary>
+    /// 恢复丢失的卷 GUID：当磁盘已锁定（无盘符）但 GUID 丢失时，
+    /// 重新枚举目标磁盘上的所有卷并返回其 GUID（不分配盘符）
+    /// </summary>
+    private List<string> RecoverVolumeGuids()
+    {
+        var guids = new List<string>();
+        try
+        {
+            foreach (var target in Settings.Current.TargetDisks)
+            {
+                var disk = Disk.FindDiskBySerialNumber(target.SerialNumber);
+                if (disk == null)
+                {
+                    SimpleLogger.Log($"RecoverVolumeGuids: disk {target.SerialNumber} not connected, skipping");
+                    continue;
+                }
+
+                var volumeGuids = Disk.GetVolumeGuidsForDiskIndex(disk.Index);
+                SimpleLogger.Log($"RecoverVolumeGuids: disk[{disk.Index}] ({target.SerialNumber}) has {volumeGuids.Count} volume(s)");
+
+                foreach (var guid in volumeGuids)
+                {
+                    // 只收集没有盘符的卷（已隐藏的）
+                    var mountPoints = Disk.GetMountPointsForVolumeGuid(guid);
+                    if (mountPoints.Any(mp => mp.Length <= 3))
+                    {
+                        SimpleLogger.Log($"RecoverVolumeGuids: volume {guid} already has mount point, skipping");
+                        continue;
+                    }
+
+                    guids.Add(guid);
+                    SimpleLogger.Log($"RecoverVolumeGuids: found hidden volume {guid}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            SimpleLogger.Log($"RecoverVolumeGuids: EXCEPTION: {ex.Message}");
+        }
+        return guids;
+    }
+
+    /// <summary>
     /// 静默恢复磁盘（退出程序时调用，不需要密码）
     /// </summary>
     public void RestoreSilently()
@@ -395,20 +501,44 @@ public class LockManager : IDisposable
 
     private void OnTargetDiskRemoved()
     {
-        Application.Current?.Dispatcher.BeginInvoke(() =>
+        Application.Current?.Dispatcher.BeginInvoke(async () =>
         {
-            lock (_stateLock)
+            try
             {
-                IsTargetConnected = false;
-                IsLocked = false;
+                // 第一次确认：防止瞬间检测失败导致误判（USB 选择性挂起等）
+                if (CheckAnyTargetConnected())
+                {
+                    SimpleLogger.Log("OnTargetDiskRemoved: false alarm (1st check), disk still connected");
+                    return;
+                }
 
-                // 清除隐藏的卷 GUID（磁盘已移除）
-                Settings.Current.HiddenVolumeGuids.Clear();
-                Settings.Save();
+                // 等待 3 秒后二次确认，避免 USB 控制器短暂重置导致误判
+                await System.Threading.Tasks.Task.Delay(3000);
 
-                _autoLockService?.ResetLockState();
+                if (CheckAnyTargetConnected())
+                {
+                    SimpleLogger.Log("OnTargetDiskRemoved: false alarm (2nd check after delay), disk still connected");
+                    return;
+                }
+
+                SimpleLogger.Log("OnTargetDiskRemoved: confirmed, all target disks removed");
+                lock (_stateLock)
+                {
+                    IsTargetConnected = false;
+                    IsLocked = false;
+
+                    // 清除隐藏的卷 GUID（磁盘已移除）
+                    Settings.Current.HiddenVolumeGuids.Clear();
+                    Settings.Save();
+
+                    _autoLockService?.ResetLockState();
+                }
+                StateChanged?.Invoke();
             }
-            StateChanged?.Invoke();
+            catch (Exception ex)
+            {
+                SimpleLogger.Log($"OnTargetDiskRemoved: EXCEPTION: {ex.Message}");
+            }
         });
     }
 
