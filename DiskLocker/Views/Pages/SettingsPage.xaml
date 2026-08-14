@@ -1,0 +1,231 @@
+<UserControl x:Class="DiskLocker.Views.Pages.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer Style="{StaticResource ModernScrollViewer}"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="32,16,32,36" MaxWidth="760" HorizontalAlignment="Center">
+
+            <!-- 页头 -->
+            <TextBlock Text="设置" Style="{StaticResource PageHeaderStyle}" />
+            <TextBlock Text="改完立即生效，不用点保存。"
+                       Style="{StaticResource PageSubHeaderStyle}" Margin="0,6,0,16" />
+
+            <!-- 保存反馈条 -->
+            <Border x:Name="FeedbackBar" Style="{StaticResource InfoBarSuccess}"
+                    Visibility="Collapsed" Margin="0,0,0,8">
+                <TextBlock x:Name="FeedbackText" Text="" FontSize="12.5"
+                           Foreground="{StaticResource SuccessBrush}" />
+            </Border>
+
+            <!-- ============ 安全与密码 ============ -->
+            <TextBlock Text="安全与密码" Style="{StaticResource SettingGroupHeader}" Margin="0,8,0,10" />
+            <Border Style="{StaticResource ModernCard}" Padding="20,8,20,16">
+                <StackPanel>
+                    <Border Style="{StaticResource SettingCardRow}" BorderThickness="0" Padding="0,8,0,14">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="32" Height="32" CornerRadius="7"
+                                    Background="{StaticResource AccentLightBrush}">
+                                <TextBlock Text="&#xE192;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                           Foreground="{StaticResource AccentBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="解锁密码" Style="{StaticResource SettingRowTitle}" />
+                                <TextBlock Text="用来解锁硬盘的密码，请务必牢记。" Style="{StaticResource SettingRowDesc}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 修改密码表单 -->
+                    <Grid Margin="44,0,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="240" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="当前密码" Style="{StaticResource LabelText}"
+                                   VerticalAlignment="Center" Margin="0,0,0,8" />
+                        <PasswordBox x:Name="OldPasswordBox" Grid.Row="0" Grid.Column="1"
+                                     Style="{StaticResource ModernPasswordBox}" Margin="0,0,0,8" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="新密码" Style="{StaticResource LabelText}"
+                                   VerticalAlignment="Center" Margin="0,0,0,8" />
+                        <PasswordBox x:Name="NewPasswordBox1" Grid.Row="1" Grid.Column="1"
+                                     Style="{StaticResource ModernPasswordBox}" Margin="0,0,0,8" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="再输一遍新密码" Style="{StaticResource LabelText}"
+                                   VerticalAlignment="Center" Margin="0,0,0,12" />
+                        <PasswordBox x:Name="NewPasswordBox2" Grid.Row="2" Grid.Column="1"
+                                     Style="{StaticResource ModernPasswordBox}" Margin="0,0,0,12"
+                                     KeyDown="NewPasswordBox2_KeyDown" />
+
+                        <Button Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                Content="修改密码" Style="{StaticResource PrimaryButton}"
+                                HorizontalAlignment="Right" MinWidth="140"
+                                Click="ChangePasswordButton_Click" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 锁定行为 ============ -->
+            <TextBlock Text="锁定行为" Style="{StaticResource SettingGroupHeader}" />
+            <Border Style="{StaticResource ModernCard}" Padding="20,8,20,8">
+                <StackPanel>
+                    <!-- 无操作自动锁定 -->
+                    <Border Style="{StaticResource SettingCardRow}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="32" Height="32" CornerRadius="7"
+                                        Background="{StaticResource AccentLightBrush}">
+                                    <TextBlock Text="&#xE916;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="一段时间不用电脑就自动锁定" Style="{StaticResource SettingRowTitle}" />
+                                    <TextBlock Text="选“禁用”表示一直不自动锁定。" Style="{StaticResource SettingRowDesc}" />
+                                </StackPanel>
+                            </StackPanel>
+                            <ComboBox x:Name="TimeoutComboBox" Grid.Column="1"
+                                      Style="{StaticResource ModernComboBox}" Width="150"
+                                      VerticalAlignment="Center"
+                                      SelectionChanged="TimeoutComboBox_SelectionChanged">
+                                <ComboBoxItem Content="禁用" Tag="0" />
+                                <ComboBoxItem Content="5 分钟" Tag="5" />
+                                <ComboBoxItem Content="10 分钟" Tag="10" />
+                                <ComboBoxItem Content="15 分钟" Tag="15" />
+                                <ComboBoxItem Content="30 分钟" Tag="30" />
+                                <ComboBoxItem Content="60 分钟" Tag="60" />
+                            </ComboBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- 锁屏时自动锁定 -->
+                    <Border Style="{StaticResource SettingCardRow}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="32" Height="32" CornerRadius="7"
+                                        Background="{StaticResource AccentLightBrush}">
+                                    <TextBlock Text="&#xE770;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="锁屏时自动锁定" Style="{StaticResource SettingRowTitle}" />
+                                    <TextBlock Text="离开电脑锁屏后，硬盘也会跟着上锁。" Style="{StaticResource SettingRowDesc}" />
+                                </StackPanel>
+                            </StackPanel>
+                            <CheckBox x:Name="LockOnScreenLockCheckBox" Grid.Column="1"
+                                      Style="{StaticResource ModernCheckBox}" VerticalAlignment="Center"
+                                      Checked="LockBehavior_Changed" Unchecked="LockBehavior_Changed" />
+                        </Grid>
+                    </Border>
+
+                    <!-- 休眠时自动锁定 -->
+                    <Border Style="{StaticResource SettingCardRow}" BorderThickness="0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="32" Height="32" CornerRadius="7"
+                                        Background="{StaticResource AccentLightBrush}">
+                                    <TextBlock Text="&#xE708;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="电脑睡眠时自动锁定" Style="{StaticResource SettingRowTitle}" />
+                                    <TextBlock Text="电脑进入睡眠或休眠后，硬盘也会跟着上锁。" Style="{StaticResource SettingRowDesc}" />
+                                </StackPanel>
+                            </StackPanel>
+                            <CheckBox x:Name="LockOnSleepCheckBox" Grid.Column="1"
+                                      Style="{StaticResource ModernCheckBox}" VerticalAlignment="Center"
+                                      Checked="LockBehavior_Changed" Unchecked="LockBehavior_Changed" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 启动项 ============ -->
+            <TextBlock Text="启动项" Style="{StaticResource SettingGroupHeader}" />
+            <Border Style="{StaticResource ModernCard}" Padding="20,8,20,8">
+                <StackPanel>
+                    <Border Style="{StaticResource SettingCardRow}" BorderThickness="0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="32" Height="32" CornerRadius="7"
+                                        Background="{StaticResource AccentLightBrush}">
+                                    <TextBlock Text="&#xE7B5;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="开机自动启动" Style="{StaticResource SettingRowTitle}" />
+                                    <TextBlock Text="电脑开机后自动在后台保护硬盘。" Style="{StaticResource SettingRowDesc}" />
+                                </StackPanel>
+                            </StackPanel>
+                            <CheckBox x:Name="AutoStartCheckBox" Grid.Column="1"
+                                      Style="{StaticResource ModernCheckBox}" VerticalAlignment="Center"
+                                      Checked="AutoStartCheckBox_Changed" Unchecked="AutoStartCheckBox_Changed" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 快捷键 ============ -->
+            <TextBlock Text="快捷键" Style="{StaticResource SettingGroupHeader}" />
+            <Border Style="{StaticResource ModernCard}" Padding="20,8,20,8">
+                <StackPanel>
+                    <Border Style="{StaticResource SettingCardRow}" BorderThickness="0" Padding="0,8,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="32" Height="32" CornerRadius="7"
+                                        Background="{StaticResource AccentLightBrush}">
+                                    <TextBlock Text="&#xE765;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="呼出解锁窗口" Style="{StaticResource SettingRowTitle}" />
+                                    <TextBlock Text="硬盘锁定时，按这个组合键可以快速输入密码解锁。" Style="{StaticResource SettingRowDesc}" />
+                                </StackPanel>
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{StaticResource AccentLightBrush}"
+                                    CornerRadius="6" Padding="10,5" VerticalAlignment="Center">
+                                <TextBlock x:Name="HotKeyText" Text="Ctrl + Alt + L"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{StaticResource AccentTextBrush}" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

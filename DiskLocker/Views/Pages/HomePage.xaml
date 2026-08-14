@@ -1,0 +1,137 @@
+<UserControl x:Class="DiskLocker.Views.Pages.HomePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer Style="{StaticResource ModernScrollViewer}"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="32,16,32,36" MaxWidth="780" HorizontalAlignment="Center">
+
+            <!-- ============ 操作反馈（置顶横幅，隐藏时不占空间） ============ -->
+            <Border x:Name="FeedbackBar" Style="{StaticResource InfoBarSuccess}"
+                    Visibility="Collapsed" Margin="0,0,0,16">
+                <TextBlock x:Name="FeedbackText" Text="" FontSize="12.5"
+                           Foreground="{StaticResource SuccessBrush}" />
+            </Border>
+
+            <!-- ============ 保护状态大卡片 ============ -->
+            <Border Style="{StaticResource ModernCard}" Padding="20,30,20,26">
+                <StackPanel HorizontalAlignment="Center">
+                    <Border x:Name="StatusIconCircle" Width="84" Height="84" CornerRadius="42"
+                            Background="{StaticResource AccentLightBrush}"
+                            HorizontalAlignment="Center" Margin="0,2,0,20">
+                        <TextBlock x:Name="StatusIconGlyph" Text="&#xE785;"
+                                   FontFamily="Segoe MDL2 Assets" FontSize="34"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock x:Name="LockStateText" Text="已解锁" FontSize="24" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="LockStateSubText" Text="硬盘可以正常使用"
+                               FontSize="12.5"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center" Margin="0,8,0,0" />
+
+                    <!-- 一键锁定 / 一键解锁（固定尺寸横向排列，避免列宽测量异常导致溢出重叠） -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,26,0,2">
+                        <Button x:Name="LockButton"
+                                Style="{StaticResource HeroButton}"
+                                Height="44" MinWidth="172" Padding="24,0"
+                                Click="LockButton_Click">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBlock Text="一键锁定" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="UnlockButton"
+                                Style="{StaticResource HeroSecondaryButton}"
+                                Height="44" MinWidth="172" Padding="24,0" Margin="14,0,0,0"
+                                Click="UnlockButton_Click">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="&#xE785;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBlock Text="一键解锁" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 状态信息 ============ -->
+            <TextBlock Text="保护状态" Style="{StaticResource SettingGroupHeader}" />
+            <Border Style="{StaticResource ModernCard}" Padding="20,6,20,6">
+                <StackPanel>
+                    <Border Style="{StaticResource HomeDiskRow}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse x:Name="ConnectionDot" Style="{StaticResource StatusDot}"
+                                         Fill="{StaticResource SuccessBrush}" />
+                                <TextBlock Text="硬盘连接" Style="{StaticResource LabelText}" Margin="10,0,0,0" />
+                            </StackPanel>
+                            <TextBlock x:Name="ConnectionStatusText" Grid.Column="1" Text="--"
+                                       FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource HomeDiskRow}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="当前盘符" Style="{StaticResource LabelText}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="DriveLettersText" Grid.Column="1" Text="--"
+                                       FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource HomeDiskRow}" BorderThickness="0" Padding="0,10,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="受保护的硬盘" Style="{StaticResource LabelText}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="TargetCountText" Grid.Column="1" Text="--"
+                                       FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 受保护磁盘概览 ============ -->
+            <TextBlock x:Name="DiskListHeader" Text="我的硬盘" Style="{StaticResource SettingGroupHeader}" />
+            <Border Style="{StaticResource ModernCard}" Padding="20,6,20,6">
+                <StackPanel x:Name="DiskListPanel" />
+            </Border>
+
+            <!-- ============ 空状态引导 ============ -->
+            <Border x:Name="EmptyStatePanel" Style="{StaticResource ModernCard}"
+                    Visibility="Collapsed" Margin="0,26,0,0">
+                <StackPanel HorizontalAlignment="Center" Margin="0,10,0,10">
+                    <Border Width="52" Height="52" CornerRadius="26"
+                            Background="{StaticResource SubtleBrush}"
+                            HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <TextBlock Text="&#xEDA2;" FontFamily="Segoe MDL2 Assets" FontSize="22"
+                                   Foreground="{StaticResource TextTertiaryBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="还没有添加要保护的硬盘" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" />
+                    <TextBlock Text="先把移动硬盘加进来，之后就能一键上锁了。"
+                               Style="{StaticResource DescriptionText}" HorizontalAlignment="Center"
+                               Margin="0,6,0,14" />
+                    <Button Content="去添加硬盘" Style="{StaticResource PrimaryButton}"
+                            Height="40" Padding="24,0"
+                            HorizontalAlignment="Center" Click="GoAddDiskButton_Click" />
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

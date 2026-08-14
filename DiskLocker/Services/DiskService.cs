@@ -13,6 +13,12 @@ namespace DiskLocker.Services;
 /// </summary>
 public class DiskService
 {
+    /// <summary>物理磁盘枚举上限（原硬编码 16，提升至 64 以覆盖多磁盘/阵列机器）</summary>
+    private const uint MaxPhysicalDisks = 64;
+
+    /// <summary>卷盘区缓冲区可容纳的最大 extent 数量（防止越界读取）</summary>
+    private const int MaxVolumeExtents = 16;
+
     // ===================== 磁盘信息查询（Win32 API） =====================
 
     /// <summary>
@@ -23,9 +29,9 @@ public class DiskService
         var disks = new List<DiskInfo>();
         try
         {
-            SimpleLogger.Log("GetAllPhysicalDisks: scanning via DeviceIoControl...");
+            // 【D-15 修复】移除每轮轮询的常规日志（原每 3 秒写一次，导致日志膨胀至 151MB）
 
-            for (uint i = 0; i < 16; i++)
+            for (uint i = 0; i < MaxPhysicalDisks; i++)
             {
                 var devicePath = $@"\\.\PHYSICALDRIVE{i}";
                 var handle = CreateFileW(devicePath, GENERIC_READ,
@@ -41,7 +47,6 @@ public class DiskService
                     if (disk != null)
                     {
                         disk.DriveLetters = GetDriveLettersForDiskIndex(disk.Index);
-                        SimpleLogger.Log($"GetAllPhysicalDisks: disk[{disk.Index}] model={disk.Model}, serial={disk.SerialNumber}, bus={disk.InterfaceType}");
                         disks.Add(disk);
                     }
                 }
@@ -51,7 +56,7 @@ public class DiskService
                 }
             }
 
-            SimpleLogger.Log($"GetAllPhysicalDisks: found {disks.Count} disks");
+            // 【D-15 修复】移除 "found N disks" 常规日志
         }
         catch (Exception ex)
         {
@@ -182,13 +187,11 @@ public class DiskService
     public bool IsDiskConnected(string serialNumber, string pnpDeviceId)
     {
         var disks = GetAllPhysicalDisks();
-        SimpleLogger.Log($"IsDiskConnected: looking for serial='{serialNumber}', pnp='{pnpDeviceId}', disks={disks.Count}");
         var found = disks.Any(d =>
             (!string.IsNullOrEmpty(serialNumber) &&
              string.Equals(d.SerialNumber, serialNumber, StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrEmpty(pnpDeviceId) &&
              string.Equals(d.PnpDeviceId, pnpDeviceId, StringComparison.OrdinalIgnoreCase)));
-        SimpleLogger.Log($"IsDiskConnected: result={found}");
         return found;
     }
 
@@ -212,7 +215,7 @@ public class DiskService
         var letters = new List<string>();
         try
         {
-            SimpleLogger.Log($"GetDriveLettersForDiskIndex({diskIndex}): scanning via DeviceIoControl...");
+            // 【D-15 修复】移除每轮轮询的常规日志
 
             // 枚举所有逻辑驱动器
             foreach (var drive in DriveInfo.GetDrives())
@@ -251,10 +254,13 @@ public class DiskService
                             // 读取 NumberOfDiskExtents（前4字节）
                             uint numExtents = (uint)Marshal.ReadInt32(buffer);
 
+                            // 防止越界：缓冲区仅容纳 MaxVolumeExtents 个 extent
+                            int extentCount = (int)Math.Min(numExtents, MaxVolumeExtents);
+
                             // 第一个 DISK_EXTENT 在偏移量 8 处（uint + 4字节填充）
                             int firstOffset = 8;
 
-                            for (int i = 0; i < numExtents; i++)
+                            for (int i = 0; i < extentCount; i++)
                             {
                                 int offset = firstOffset + i * extentSize;
                                 uint diskNum = (uint)Marshal.ReadInt32(buffer, offset);
@@ -262,7 +268,6 @@ public class DiskService
                                 {
                                     if (!letters.Contains(driveLetter))
                                         letters.Add(driveLetter);
-                                    SimpleLogger.Log($"GetDriveLettersForDiskIndex: {driveLetter} is on disk {diskIndex}");
                                     break;
                                 }
                             }
@@ -279,7 +284,7 @@ public class DiskService
                 }
             }
 
-            SimpleLogger.Log($"GetDriveLettersForDiskIndex({diskIndex}): letters={string.Join(", ", letters)}");
+            // 【D-15 修复】移除 letters 汇总日志
         }
         catch (Exception ex)
         {
@@ -312,6 +317,7 @@ public class DiskService
     /// <summary>
     /// 隐藏指定盘符（移除挂载点）
     /// </summary>
+    /// <returns>成功隐藏时返回卷 GUID（用于后续恢复）；失败时返回 null（不谎报已隐藏）</returns>
     public string? HideDriveLetter(string driveLetter)
     {
         if (string.IsNullOrEmpty(driveLetter))
@@ -319,8 +325,16 @@ public class DiskService
 
         var mountPoint = driveLetter.EndsWith("\\") ? driveLetter : driveLetter + "\\";
 
+        // 先获取卷 GUID（删除挂载点前获取，作为后续恢复的钥匙）
         var volumeGuid = GetVolumeGuidForDriveLetter(driveLetter);
         SimpleLogger.Log($"HideDriveLetter: letter={driveLetter}, guid={volumeGuid}, mountPoint={mountPoint}");
+
+        // 如果无法获取卷 GUID，则不执行隐藏——否则隐藏后无法恢复，导致数据不可达
+        if (string.IsNullOrEmpty(volumeGuid))
+        {
+            SimpleLogger.Log($"HideDriveLetter: cannot get volume GUID for {driveLetter}, aborting hide to avoid unrecoverable state");
+            return null;
+        }
 
         var success = DeleteVolumeMountPointW(mountPoint);
         if (!success)
@@ -339,6 +353,7 @@ public class DiskService
             else
             {
                 SimpleLogger.Log("HideDriveLetter: DefineDosDeviceW succeeded");
+                success = true;
             }
         }
         else
@@ -346,7 +361,23 @@ public class DiskService
             SimpleLogger.Log("HideDriveLetter: DeleteVolumeMountPointW succeeded");
         }
 
-        SHChangeNotify(SHCNE_DRIVEREMOVED, SHCNF_PATHW, Marshal.StringToHGlobalUni(mountPoint), IntPtr.Zero);
+        // 【D-01 修复】只有真正隐藏成功才返回 GUID；失败则返回 null，避免"假锁定"
+        if (!success)
+        {
+            SimpleLogger.Log($"HideDriveLetter: FAILED to hide {driveLetter}, returning null (no fake lock)");
+            return null;
+        }
+
+        // 通知资源管理器刷新（【D-05 修复】释放非托管内存，避免每次锁/解泄漏）
+        var pMountPoint = Marshal.StringToHGlobalUni(mountPoint);
+        try
+        {
+            SHChangeNotify(SHCNE_DRIVEREMOVED, SHCNF_PATHW, pMountPoint, IntPtr.Zero);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pMountPoint);
+        }
 
         return volumeGuid;
     }
@@ -378,10 +409,11 @@ public class DiskService
     /// <summary>
     /// 恢复卷的盘符
     /// </summary>
-    public bool RestoreDriveLetter(string volumeGuid, string? preferredLetter = null)
+    /// <returns>成功时返回实际分配的盘符（可能与 preferredLetter 不同）；失败返回 null</returns>
+    public string? RestoreDriveLetter(string volumeGuid, string? preferredLetter = null)
     {
         if (string.IsNullOrEmpty(volumeGuid))
-            return false;
+            return null;
 
         if (!volumeGuid.EndsWith("\\"))
             volumeGuid += "\\";
@@ -393,7 +425,7 @@ public class DiskService
         }
 
         if (string.IsNullOrEmpty(letter))
-            return false;
+            return null;
 
         var mountPoint = letter.EndsWith("\\") ? letter : letter + "\\";
 
@@ -402,13 +434,24 @@ public class DiskService
         {
             var err = Marshal.GetLastWin32Error();
             SimpleLogger.Log($"RestoreDriveLetter: SetVolumeMountPointW FAILED for {mountPoint} -> {volumeGuid}, error={err}");
+            return null;
         }
-        else
+
+        SimpleLogger.Log($"RestoreDriveLetter: SetVolumeMountPointW succeeded for {mountPoint} -> {volumeGuid}");
+
+        // 通知资源管理器刷新（【D-05 修复】释放非托管内存）
+        var pMountPoint = Marshal.StringToHGlobalUni(mountPoint);
+        try
         {
-            SimpleLogger.Log($"RestoreDriveLetter: SetVolumeMountPointW succeeded for {mountPoint} -> {volumeGuid}");
-            SHChangeNotify(SHCNE_DRIVEADD, SHCNF_PATHW, Marshal.StringToHGlobalUni(mountPoint), IntPtr.Zero);
+            SHChangeNotify(SHCNE_DRIVEADD, SHCNF_PATHW, pMountPoint, IntPtr.Zero);
         }
-        return success;
+        finally
+        {
+            Marshal.FreeHGlobal(pMountPoint);
+        }
+
+        // 【D-10 修复】返回实际使用的盘符，而非调用方传入的 preferredLetter
+        return letter;
     }
 
     /// <summary>
@@ -423,9 +466,11 @@ public class DiskService
             var preferred = preferredLetters != null && i < preferredLetters.Count
                 ? preferredLetters[i]
                 : null;
-            if (RestoreDriveLetter(guid, preferred))
+            // 【D-10 修复】记录实际分配的盘符，而非请求的盘符
+            var actual = RestoreDriveLetter(guid, preferred);
+            if (actual != null)
             {
-                restoredLetters.Add(preferred ?? FindFreeDriveLetter() ?? "");
+                restoredLetters.Add(actual);
             }
         }
         return restoredLetters;
@@ -468,7 +513,9 @@ public class DiskService
                             IntPtr.Zero, 0, extentBuffer, (uint)bufferSize, out _, IntPtr.Zero))
                         {
                             uint numExtents = (uint)Marshal.ReadInt32(extentBuffer);
-                            for (int i = 0; i < numExtents; i++)
+                            // 防止越界：缓冲区仅容纳 MaxVolumeExtents 个 extent
+                            int extentCount = (int)Math.Min(numExtents, MaxVolumeExtents);
+                            for (int i = 0; i < extentCount; i++)
                             {
                                 uint diskNum = (uint)Marshal.ReadInt32(extentBuffer, 8 + i * extentSize);
                                 if (diskNum == diskIndex)

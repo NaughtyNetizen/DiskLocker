@@ -36,6 +36,11 @@ public partial class App : Application
 
     private void Application_Startup(object sender, StartupEventArgs e)
     {
+        // 【D-07 修复】注册全局异常处理，防止 UI/后台线程未捕获异常导致静默崩溃
+        this.DispatcherUnhandledException += App_DispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += App_DomainUnhandledException;
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += App_UnobservedTaskException;
+
         // 单实例检查
         _singleInstanceMutex = new Mutex(true, "DiskLocker_SingleInstance_Mutex", out bool createdNew);
         if (!createdNew)
@@ -70,6 +75,27 @@ public partial class App : Application
     {
         _lockManager?.Dispose();
         try { _singleInstanceMutex?.ReleaseMutex(); } catch { }
+    }
+
+    // ===================== 全局异常处理（D-07 修复） =====================
+
+    private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    {
+        SimpleLogger.Log($"[FATAL] DispatcherUnhandledException: {e.Exception}");
+        try { ShowBalloon($"发生错误: {e.Exception.Message}", ToolTipIcon.Error); } catch { }
+        e.Handled = true; // 防止 UI 线程未捕获异常导致静默崩溃
+    }
+
+    private void App_DomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        var ex = e.ExceptionObject as Exception;
+        SimpleLogger.Log($"[FATAL] AppDomain.UnhandledException (terminating={e.IsTerminating}): {ex}");
+    }
+
+    private void App_UnobservedTaskException(object? sender, System.Threading.Tasks.UnobservedTaskExceptionEventArgs e)
+    {
+        SimpleLogger.Log($"[FATAL] UnobservedTaskException: {e.Exception}");
+        e.SetObserved(); // 防止未观察的 Task 异常终止进程
     }
 
     // ===================== 配置向导 =====================
@@ -123,7 +149,15 @@ public partial class App : Application
         _lockManager.ErrorOccurred += OnErrorOccurred;
 
         // 初始化所有服务（设备监听、自动锁定、全局热键）
-        _lockManager.Initialize();
+        // 【D-07 修复】加启动韧性：Initialize 失败不致整个应用起不来，仍创建托盘让用户感知
+        try
+        {
+            _lockManager.Initialize();
+        }
+        catch (Exception ex)
+        {
+            SimpleLogger.Log($"[FATAL] Initialize failed: {ex}");
+        }
 
         // 创建系统托盘
         InitializeTray();
@@ -302,7 +336,12 @@ public partial class App : Application
 
     private void ShowBalloon(string text, ToolTipIcon icon)
     {
-        _notifyIcon?.ShowBalloonTip(3000, "DiskLocker", text, icon);
+        // 【D-20 修复】错误回调可能来自非 UI 线程（DeviceWatcherService Timer），
+        // 需 marshal 到 UI 线程后再操作 WinForms NotifyIcon，避免跨线程异常
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _notifyIcon?.ShowBalloonTip(3000, "DiskLocker", text, icon);
+        }));
     }
 
     /// <summary>
@@ -339,7 +378,15 @@ public partial class App : Application
         g.FillRectangle(Brushes.White, 15, 21, 2, 5);
 
         var handle = bitmap.GetHicon();
-        return Icon.FromHandle(handle);
+        // 【D-25 修复】Icon.FromHandle 不接管句柄所有权，需 Clone 后 DestroyIcon 释放原始句柄
+        try
+        {
+            return (Icon)Icon.FromHandle(handle).Clone();
+        }
+        finally
+        {
+            DestroyIcon(handle);
+        }
     }
 
     /// <summary>

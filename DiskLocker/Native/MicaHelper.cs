@@ -1,12 +1,13 @@
 using System.Windows;
 using System.Windows.Interop;
+using Microsoft.Win32;
 using static DiskLocker.Native.WinApi;
 
 namespace DiskLocker.Native;
 
 /// <summary>
-/// Win11 Acrylic（亚克力/毛玻璃）背景辅助类。
-/// 在 Windows 11 上启用类似 macOS 的毛玻璃系统背景；
+/// Win11 Mica（云母）背景辅助类。
+/// 在 Windows 11 上启用系统 Mica 背景材质；深色/浅色非客户区跟随系统主题。
 /// 窗口背景使用半透明渐变（由窗口模板提供），即使材质未生效也不会出现黑底。
 /// </summary>
 public static class MicaHelper
@@ -15,9 +16,9 @@ public static class MicaHelper
     private const int Win11Build = 22000;
 
     /// <summary>
-    /// 尝试为指定窗口启用 Acrylic 毛玻璃背景。
+    /// 尝试为指定窗口启用 Mica 云母背景。
     /// 窗口背景保持模板中的半透明渐变：
-    /// 材质生效时透出系统毛玻璃，未生效时半透明渐变兜底（不会黑屏）。
+    /// 材质生效时透出系统 Mica，未生效时半透明渐变兜底（不会黑屏）。
     /// </summary>
     public static bool TryEnableAcrylic(Window window)
     {
@@ -31,19 +32,37 @@ public static class MicaHelper
             if (hwnd == IntPtr.Zero)
                 return false;
 
-            // 浅色主题非客户区（配合自绘标题栏）
-            int useDarkMode = 0;
+            // 【D-08 修复】深色/浅色非客户区跟随系统主题（原硬编码为 0 浅色）
+            int useDarkMode = IsSystemDarkMode() ? 1 : 0;
             DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDarkMode, sizeof(int));
 
             // Win11 系统圆角
             int cornerPreference = DWMWCP_ROUND;
             DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
 
-            // 设置系统背景材质为 Acrylic（毛玻璃）
-            int backdropType = DWMSBT_TRANSIENTWINDOW;
+            // 【D-08 修复】设置系统背景材质为 Mica（云母），与 README 描述一致（原为 Acrylic）
+            int backdropType = DWMSBT_MAINWINDOW;
             int hr = DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref backdropType, sizeof(int));
 
             return hr == 0; // S_OK == 0
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 检测系统是否使用深色主题
+    /// </summary>
+    private static bool IsSystemDarkMode()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            // AppsUseLightTheme: 1=浅色, 0=深色
+            return key?.GetValue("AppsUseLightTheme") is int v && v == 0;
         }
         catch
         {

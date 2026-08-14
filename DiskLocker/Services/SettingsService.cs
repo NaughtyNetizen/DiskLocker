@@ -42,8 +42,11 @@ public class SettingsService
                 Current = new AppSettings();
             }
         }
-        catch
+        catch (Exception ex)
         {
+            // 配置文件损坏时，先备份再重置为默认值，避免用户被锁死且无提示
+            SimpleLogger.Log($"SettingsService.Load: failed to read settings ({ex.Message}), backing up and resetting");
+            BackupCorruptSettings();
             Current = new AppSettings();
         }
 
@@ -51,18 +54,49 @@ public class SettingsService
         return Current;
     }
 
-    /// <summary>保存设置到文件</summary>
+    /// <summary>保存设置到文件（原子写入：临时文件 + 替换，失败上抛而非静默吞掉）</summary>
     public void Save()
     {
         try
         {
             Directory.CreateDirectory(AppDataDir);
             var json = JsonSerializer.Serialize(Current, JsonOptions);
-            File.WriteAllText(SettingsPath, json);
+
+            // 原子写入：先写临时文件，再替换原文件，防止写入中途崩溃导致配置损坏
+            var tempPath = SettingsPath + ".tmp";
+            File.WriteAllText(tempPath, json);
+
+            if (File.Exists(SettingsPath))
+                File.Replace(tempPath, SettingsPath, null);
+            else
+                File.Move(tempPath, SettingsPath);
         }
-        catch
+        catch (Exception ex)
         {
-            // 保存失败时静默处理，可扩展为日志记录
+            // 不再静默吞掉异常：记录日志以便排查。
+            // 不向上抛出，避免未做异常处理的调用方（UI 设置更新等）崩溃。
+            // 关键改进：原子写入已保证不会因写入中途崩溃而损坏配置。
+            SimpleLogger.Log($"SettingsService.Save FAILED: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 备份损坏的配置文件（加时间戳后缀），便于后续排查
+    /// </summary>
+    private void BackupCorruptSettings()
+    {
+        try
+        {
+            if (File.Exists(SettingsPath))
+            {
+                var backupPath = SettingsPath + $".corrupt.{DateTime.Now:yyyyMMdd_HHmmss}";
+                File.Move(SettingsPath, backupPath);
+                SimpleLogger.Log($"SettingsService: corrupt settings backed up to {backupPath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            SimpleLogger.Log($"SettingsService: failed to backup corrupt settings: {ex.Message}");
         }
     }
 

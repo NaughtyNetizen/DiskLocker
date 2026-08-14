@@ -1,0 +1,155 @@
+<UserControl x:Class="DiskLocker.Views.Pages.DisksPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:DiskLocker.ViewModels">
+    <UserControl.Resources>
+        <!-- 已保护磁盘卡片模板 -->
+        <DataTemplate x:Key="ProtectedDiskTemplate" DataType="{x:Type vm:DiskCardModel}">
+            <Border Style="{StaticResource DiskCard}">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Width="38" Height="38" CornerRadius="8"
+                                Background="{StaticResource AccentLightBrush}">
+                            <TextBlock Text="&#xEDA2;"
+                                       FontFamily="Segoe MDL2 Assets" FontSize="17"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Model}" FontWeight="SemiBold" FontSize="13"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding SizeDisplay}" FontSize="11"
+                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,1,0,0" />
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="{Binding SerialNumber, StringFormat='S/N: {0}'}" FontSize="11"
+                               Foreground="{StaticResource TextTertiaryBrush}"
+                               TextTrimming="CharacterEllipsis" Margin="0,0,0,8" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding DriveLettersText}" FontSize="12"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <Button Grid.Column="1" Content="移除" Tag="{Binding}"
+                                Click="RemoveDiskCard_Click"
+                                Style="{StaticResource SubtleButton}"
+                                Foreground="{StaticResource DangerBrush}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- 可添加磁盘卡片模板 -->
+        <DataTemplate x:Key="AvailableDiskTemplate" DataType="{x:Type vm:DiskCardModel}">
+            <Border Style="{StaticResource DiskCard}">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Width="38" Height="38" CornerRadius="8"
+                                Background="{StaticResource SubtleBrush}">
+                            <TextBlock Text="&#xEDA2;"
+                                       FontFamily="Segoe MDL2 Assets" FontSize="17"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Model}" FontWeight="SemiBold" FontSize="13"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding SizeDisplay}" FontSize="11"
+                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,1,0,0" />
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="{Binding SerialNumber, StringFormat='S/N: {0}'}" FontSize="11"
+                               Foreground="{StaticResource TextTertiaryBrush}"
+                               TextTrimming="CharacterEllipsis" Margin="0,0,0,10" />
+                    <Button Tag="{Binding}"
+                            Click="AddDiskCard_Click"
+                            Style="{StaticResource PrimaryButton}"
+                            HorizontalAlignment="Stretch">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock Text="添加保护" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer Style="{StaticResource ModernScrollViewer}"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="32,16,32,36">
+            <!-- 页头 -->
+            <TextBlock Text="磁盘管理" Style="{StaticResource PageHeaderStyle}" />
+            <TextBlock Text="添加或移除要保护的硬盘。锁定后硬盘会从电脑里“藏”起来。"
+                       Style="{StaticResource PageSubHeaderStyle}" Margin="0,6,0,24" />
+
+            <!-- 已保护硬盘 -->
+            <Grid Margin="0,0,0,12">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="已保护的硬盘" Style="{StaticResource NavColumnHeader}" Margin="0" />
+                    <TextBlock x:Name="ProtectedCountText" Text="" FontSize="12"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               VerticalAlignment="Center" Margin="8,0,0,2" />
+                </StackPanel>
+                <Button Click="RefreshButton_Click"
+                        Style="{StaticResource SubtleButton}"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Text="刷新" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+            <ItemsControl x:Name="ProtectedDisksControl"
+                          ItemTemplate="{StaticResource ProtectedDiskTemplate}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+            <TextBlock x:Name="NoProtectedText"
+                       Text="还没有保护任何硬盘，从下方挑一个加进来吧。"
+                       Style="{StaticResource DescriptionText}"
+                       Visibility="Collapsed" Margin="0,4,0,0" />
+
+            <!-- 可添加硬盘 -->
+            <Grid Margin="0,24,0,12">
+                <TextBlock Text="可以添加的硬盘" Style="{StaticResource NavColumnHeader}" Margin="0" />
+            </Grid>
+            <ItemsControl x:Name="AvailableDisksControl"
+                          ItemTemplate="{StaticResource AvailableDiskTemplate}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+            <TextBlock x:Name="NoAvailableText"
+                       Text="没有检测到其他可以添加的硬盘，插上移动硬盘后点“刷新”。"
+                       Style="{StaticResource DescriptionText}"
+                       Visibility="Collapsed" Margin="0,4,0,0" />
+
+            <!-- 操作反馈 -->
+            <Border x:Name="FeedbackBar" Style="{StaticResource InfoBarSuccess}"
+                    Visibility="Collapsed" Margin="0,16,0,0">
+                <TextBlock x:Name="FeedbackText" Text="" FontSize="12.5"
+                           Foreground="{StaticResource SuccessBrush}" />
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

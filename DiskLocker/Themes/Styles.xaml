@@ -4,33 +4,33 @@
     xmlns:behaviors="clr-namespace:DiskLocker.Behaviors"
     xmlns:sys="clr-namespace:System;assembly=System.Runtime">
 
-    <!-- ======================== Win11 云母灰白调色板 ======================== -->
-    <!-- 强调色（Win11 默认蓝） -->
-    <Color x:Key="AccentColor">#0067C0</Color>
-    <Color x:Key="AccentHoverColor">#1975C5</Color>
-    <Color x:Key="AccentPressedColor">#005BA1</Color>
-    <Color x:Key="AccentLightColor">#E8F1FB</Color>
-    <Color x:Key="AccentTextColor">#005FB8</Color>
+    <!-- ======================== macOS 风格灰白调色板 ======================== -->
+    <!-- 强调色（系统蓝） -->
+    <Color x:Key="AccentColor">#007AFF</Color>
+    <Color x:Key="AccentHoverColor">#1A86FF</Color>
+    <Color x:Key="AccentPressedColor">#0062CC</Color>
+    <Color x:Key="AccentLightColor">#EAF3FF</Color>
+    <Color x:Key="AccentTextColor">#0062CC</Color>
 
     <!-- 背景与卡片（半透明，透出毛玻璃材质） -->
-    <Color x:Key="BackgroundColor">#F3F3F3</Color>
-    <Color x:Key="CardBackgroundColor">#E6FFFFFF</Color>
-    <Color x:Key="CardBorderColor">#E0E0E0</Color>
-    <Color x:Key="SubtleColor">#F5F5F5</Color>
+    <Color x:Key="BackgroundColor">#F5F5F7</Color>
+    <Color x:Key="CardBackgroundColor">#F2FFFFFF</Color>
+    <Color x:Key="CardBorderColor">#E4E4EA</Color>
+    <Color x:Key="SubtleColor">#F2F2F7</Color>
 
     <!-- 边框与文字 -->
-    <Color x:Key="BorderColor">#E5E5E5</Color>
-    <Color x:Key="ControlBorderColor">#D5D5D5</Color>
+    <Color x:Key="BorderColor">#E6E6EB</Color>
+    <Color x:Key="ControlBorderColor">#D8D8DE</Color>
     <Color x:Key="TextPrimaryColor">#1A1A1A</Color>
-    <Color x:Key="TextSecondaryColor">#606060</Color>
-    <Color x:Key="TextTertiaryColor">#9E9E9E</Color>
+    <Color x:Key="TextSecondaryColor">#6B7280</Color>
+    <Color x:Key="TextTertiaryColor">#9CA3AF</Color>
     <Color x:Key="TextDisabledColor">#A0A0A0</Color>
 
-    <!-- 状态色（Win11 语义色） -->
-    <Color x:Key="DangerColor">#C42B1C</Color>
-    <Color x:Key="DangerHoverColor">#B3251A</Color>
-    <Color x:Key="DangerLightColor">#FDEBEB</Color>
-    <Color x:Key="SuccessColor">#0F7B0F</Color>
+    <!-- 状态色（语义色） -->
+    <Color x:Key="DangerColor">#EF4444</Color>
+    <Color x:Key="DangerHoverColor">#DC2626</Color>
+    <Color x:Key="DangerLightColor">#FEF1F1</Color>
+    <Color x:Key="SuccessColor">#2EA043</Color>
     <Color x:Key="WarningColor">#9D5D00</Color>
 
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
@@ -82,7 +82,7 @@
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="border"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="4"
+                            CornerRadius="8"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           TextBlock.FontFamily="{TemplateBinding FontFamily}" />
@@ -141,7 +141,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4"
+                            CornerRadius="8"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           TextBlock.FontFamily="{TemplateBinding FontFamily}" />
@@ -180,7 +180,7 @@
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="border"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="4"
+                            CornerRadius="8"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
@@ -211,7 +211,7 @@
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="border"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="4"
+                            CornerRadius="8"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           TextBlock.FontFamily="{TemplateBinding FontFamily}" />
@@ -249,7 +249,7 @@
                             Background="{StaticResource CardBackgroundBrush}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4">
+                            CornerRadius="8">
                         <ScrollViewer x:Name="PART_ContentHost"
                                       Margin="{TemplateBinding Padding}"
                                       Focusable="False"
@@ -286,7 +286,7 @@
                             Background="{StaticResource CardBackgroundBrush}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4">
+                            CornerRadius="8">
                         <ScrollViewer x:Name="PART_ContentHost"
                                       Margin="{TemplateBinding Padding}"
                                       Focusable="False"
@@ -321,7 +321,7 @@
                                 Background="{StaticResource CardBackgroundBrush}"
                                 BorderBrush="{StaticResource ControlBorderBrush}"
                                 BorderThickness="1"
-                                CornerRadius="4">
+                                CornerRadius="8">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -359,7 +359,7 @@
                             <Border Background="{StaticResource CardBackgroundBrush}"
                                     BorderBrush="{StaticResource BorderBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="6"
+                                    CornerRadius="10"
                                     Padding="4"
                                     Margin="8"
                                     MinWidth="{TemplateBinding ActualWidth}"
@@ -854,16 +854,17 @@
     <!-- ======================== 卡片容器 ======================== -->
     <Style x:Key="ModernCard" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="12" />
         <Setter Property="Padding" Value="20" />
         <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Effect" Value="{StaticResource CardShadow}" />
     </Style>
 
     <!-- ======================== 磁盘卡片 ======================== -->
     <Style x:Key="DiskCard" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="12" />
         <Setter Property="Padding" Value="16" />
         <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
@@ -918,6 +919,190 @@
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Padding" Value="9,3" />
         <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ======================== 页面大标题 ======================== -->
+    <Style x:Key="PageHeaderStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI Variable" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    </Style>
+
+    <!-- ======================== 页面副标题 ======================== -->
+    <Style x:Key="PageSubHeaderStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI Variable" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+
+    <!-- ======================== 导航项按钮（Win11 设置风格） ======================== -->
+    <Style x:Key="NavItemButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Padding" Value="14,9" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI Variable" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <!-- 选中态左侧强调色圆角竖条 -->
+                        <Border x:Name="indicator"
+                                Width="3" CornerRadius="1.5"
+                                Background="Transparent"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Stretch" Margin="0,0,0,0" />
+                        <Border x:Name="bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}"
+                                Margin="4,0,8,0">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"
+                                              TextBlock.FontFamily="{TemplateBinding FontFamily}" />
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="#22D6D6D6" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="#33D6D6D6" />
+                        </Trigger>
+                        <Trigger Property="Tag" Value="Selected">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentLightBrush}" />
+                            <Setter TargetName="indicator" Property="Background" Value="{StaticResource AccentBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ======================== 设置卡片行（图标 + 标题/说明 + 右侧控件） ======================== -->
+    <Style x:Key="SettingCardRow" TargetType="Border">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="0,12,0,12" />
+    </Style>
+
+    <!-- ======================== 设置行标题 ======================== -->
+    <Style x:Key="SettingRowTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI Variable" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    </Style>
+
+    <!-- ======================== 设置行说明文字 ======================== -->
+    <Style x:Key="SettingRowDesc" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI Variable" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+    </Style>
+
+    <!-- ======================== 设置分组标题 ======================== -->
+    <Style x:Key="SettingGroupHeader" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI Variable" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+        <Setter Property="Margin" Value="0,24,0,10" />
+    </Style>
+
+    <!-- ======================== 信息提示条（保存成功） ======================== -->
+    <Style x:Key="InfoBarSuccess" TargetType="Border">
+        <Setter Property="Background" Value="#E6ECF7EE" />
+        <Setter Property="BorderBrush" Value="#C6D8C6" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="14,10" />
+    </Style>
+
+    <!-- ======================== 信息提示条（保存失败） ======================== -->
+    <Style x:Key="InfoBarError" TargetType="Border">
+        <Setter Property="Background" Value="#E6FDF0EE" />
+        <Setter Property="BorderBrush" Value="#E8C5C0" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="14,10" />
+    </Style>
+
+    <!-- ======================== 警告提示条（危险操作提醒） ======================== -->
+    <Style x:Key="InfoBarWarning" TargetType="Border">
+        <Setter Property="Background" Value="#E6FFF9E8" />
+        <Setter Property="BorderBrush" Value="#E8D9B0" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="14,10" />
+    </Style>
+
+    <!-- ======================== 向导步骤圆圈 ======================== -->
+    <Style x:Key="WizardStepCircle" TargetType="Border">
+        <Setter Property="Width" Value="30" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="CornerRadius" Value="15" />
+        <Setter Property="Background" Value="{StaticResource SubtleBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ======================== 向导步骤圆圈内文字 ======================== -->
+    <Style x:Key="WizardStepCircleText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI Variable" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ======================== 向导步骤标签 ======================== -->
+    <Style x:Key="WizardStepLabel" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI Variable" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,6,0,0" />
+    </Style>
+
+    <!-- ======================== 向导步骤连接线 ======================== -->
+    <Style x:Key="WizardStepConnector" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{StaticResource BorderBrush}" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="Margin" Value="8,15,8,0" />
+    </Style>
+
+    <!-- ======================== 首页大操作按钮（加高版） ======================== -->
+    <Style x:Key="HeroButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+        <Setter Property="Padding" Value="0,12" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style x:Key="HeroSecondaryButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+        <Setter Property="Padding" Value="0,12" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <!-- ======================== 首页磁盘概览行 ======================== -->
+    <Style x:Key="HomeDiskRow" TargetType="Border">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="0,12,0,12" />
     </Style>
 
 </ResourceDictionary>

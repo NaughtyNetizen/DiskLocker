@@ -12,6 +12,9 @@ public class DeviceWatcherService : IDisposable
     private System.Timers.Timer? _pollTimer;
     private bool _disposed;
 
+    /// <summary>【D-22 修复】轮询重入保护标志，防止慢 I/O 时回调重叠</summary>
+    private int _isPolling = 0;
+
     /// <summary>目标磁盘插入时触发</summary>
     public event Action<DiskInfo>? TargetDiskArrived;
 
@@ -58,6 +61,10 @@ public class DeviceWatcherService : IDisposable
     /// <summary>轮询回调</summary>
     private void OnPollElapsed(object? sender, System.Timers.ElapsedEventArgs e)
     {
+        // 【D-22 修复】重入保护：若上一轮轮询尚未完成则跳过本轮，避免回调重叠
+        if (System.Threading.Interlocked.CompareExchange(ref _isPolling, 1, 0) != 0)
+            return;
+
         try
         {
             var allDisks = _diskService.GetAllPhysicalDisks();
@@ -123,6 +130,11 @@ public class DeviceWatcherService : IDisposable
         {
             SimpleLogger.Log($"DeviceWatcher: poll error: {ex.Message}");
             ErrorOccurred?.Invoke(ex);
+        }
+        finally
+        {
+            // 【D-22 修复】释放重入标志
+            _isPolling = 0;
         }
     }
 

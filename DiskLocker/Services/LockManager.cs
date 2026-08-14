@@ -67,6 +67,9 @@ public class LockManager : IDisposable
     /// </summary>
     public void Initialize()
     {
+        // 【D-16 修复】检查管理员权限（manifest 已 requireAdministrator，此处为安全兜底）
+        CheckAdminPrivilege();
+
         var settings = Settings.Current;
 
         // 迁移旧的单磁盘设置到 TargetDisks 列表
@@ -100,7 +103,12 @@ public class LockManager : IDisposable
         // 注册全局热键
         _hotkeyService = new GlobalHotkeyService();
         _hotkeyService.HotKeyPressed += OnHotKeyPressed;
-        _hotkeyService.Register(settings.HotKeyModifiers, settings.HotKeyVirtualKey);
+        // 【D-17 修复】注册失败时提示用户（可能被其他程序占用）
+        if (!_hotkeyService.Register(settings.HotKeyModifiers, settings.HotKeyVirtualKey))
+        {
+            SimpleLogger.Log("Initialize: global hotkey registration FAILED (may be occupied by another app)");
+            ErrorOccurred?.Invoke("全局热键注册失败，可能被其他程序占用");
+        }
 
         // 如果标记为锁定但磁盘实际有盘符（如磁盘被重新挂载），重新锁定
         if (IsTargetConnected && IsLocked)
@@ -186,6 +194,25 @@ public class LockManager : IDisposable
                 return true;
         }
         return false;
+    }
+
+    /// <summary>【D-16 修复】检查是否以管理员权限运行，否则警告</summary>
+    private void CheckAdminPrivilege()
+    {
+        try
+        {
+            var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            var principal = new System.Security.Principal.WindowsPrincipal(identity);
+            if (!principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
+            {
+                SimpleLogger.Log("WARNING: not running as administrator, disk operations may fail");
+                ErrorOccurred?.Invoke("程序未以管理员身份运行，磁盘操作可能失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            SimpleLogger.Log($"CheckAdminPrivilege: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -405,10 +432,12 @@ public class LockManager : IDisposable
                     var letter = Disk.FindFreeDriveLetter();
                     if (letter == null) break;
 
-                    if (Disk.RestoreDriveLetter(guid, letter))
+                    // 【D-10 修复】RestoreDriveLetter 现返回实际分配的盘符
+                    var actualLetter = Disk.RestoreDriveLetter(guid, letter);
+                    if (actualLetter != null)
                     {
-                        restored.Add(letter);
-                        SimpleLogger.Log($"FallbackRestore: restored {guid} -> {letter}");
+                        restored.Add(actualLetter);
+                        SimpleLogger.Log($"FallbackRestore: restored {guid} -> {actualLetter}");
                     }
                 }
             }

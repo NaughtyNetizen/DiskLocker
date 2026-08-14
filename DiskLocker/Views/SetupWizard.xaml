@@ -2,62 +2,107 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="DiskLocker 配置向导"
-        Width="980" Height="580"
-        MinWidth="860" MinHeight="520"
+        Width="860" Height="620"
+        MinWidth="760" MinHeight="560"
         Style="{StaticResource ModernWindow}"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize">
-    <Grid Margin="28,6,28,24">
+    <Grid Margin="32,8,32,24">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- ============ 头部 ============ -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,4,0,0">
-            <Border Width="44" Height="44" CornerRadius="10"
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,6,0,0">
+            <Border Width="46" Height="46" CornerRadius="12"
                     Background="{StaticResource AccentBrush}">
                 <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets"
                            FontSize="22" Foreground="White"
                            HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <StackPanel VerticalAlignment="Center" Margin="14,0,0,0">
-                <TextBlock Text="DiskLocker 配置向导" FontSize="19" FontWeight="Bold"
+                <TextBlock Text="欢迎使用 DiskLocker" FontSize="20" FontWeight="Bold"
                            Foreground="{StaticResource TextPrimaryBrush}" />
-                <TextBlock Text="首次使用请完成以下三步配置，之后可随时在设置中修改。" FontSize="12"
-                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                <TextBlock Text="跟着下面几步，很快就能给你的硬盘上锁。" FontSize="12.5"
+                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" />
             </StackPanel>
         </StackPanel>
 
-        <!-- ============ 三步横向并排 ============ -->
-        <Grid Grid.Row="1" Margin="0,18,0,18">
+        <!-- ============ 步骤指示器 ============ -->
+        <Grid Grid.Row="1" Margin="40,22,40,18">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
+            <!-- 步骤 1 -->
+            <StackPanel Grid.Column="0">
+                <Border x:Name="Step1Circle" Style="{StaticResource WizardStepCircle}"
+                        Background="{StaticResource AccentBrush}" BorderThickness="0">
+                    <TextBlock x:Name="Step1CircleText" Text="1" Style="{StaticResource WizardStepCircleText}"
+                               Foreground="White" />
+                </Border>
+                <TextBlock x:Name="Step1Label" Text="选择硬盘" Style="{StaticResource WizardStepLabel}"
+                           Foreground="{StaticResource AccentTextBrush}" FontWeight="SemiBold" />
+            </StackPanel>
+            <Border Grid.Column="1" Style="{StaticResource WizardStepConnector}" x:Name="Connector1" />
+            <!-- 步骤 2 -->
+            <StackPanel Grid.Column="2">
+                <Border x:Name="Step2Circle" Style="{StaticResource WizardStepCircle}">
+                    <TextBlock x:Name="Step2CircleText" Text="2" Style="{StaticResource WizardStepCircleText}" />
+                </Border>
+                <TextBlock x:Name="Step2Label" Text="设置密码" Style="{StaticResource WizardStepLabel}" />
+            </StackPanel>
+            <Border Grid.Column="3" Style="{StaticResource WizardStepConnector}" x:Name="Connector2" />
+            <!-- 步骤 3 -->
+            <StackPanel Grid.Column="4">
+                <Border x:Name="Step3Circle" Style="{StaticResource WizardStepCircle}">
+                    <TextBlock x:Name="Step3CircleText" Text="3" Style="{StaticResource WizardStepCircleText}" />
+                </Border>
+                <TextBlock x:Name="Step3Label" Text="行为偏好" Style="{StaticResource WizardStepLabel}" />
+            </StackPanel>
+            <Border Grid.Column="5" Style="{StaticResource WizardStepConnector}" x:Name="Connector3" />
+            <!-- 步骤 4 -->
+            <StackPanel Grid.Column="6">
+                <Border x:Name="Step4Circle" Style="{StaticResource WizardStepCircle}">
+                    <TextBlock x:Name="Step4CircleText" Text="4" Style="{StaticResource WizardStepCircleText}" />
+                </Border>
+                <TextBlock x:Name="Step4Label" Text="完成" Style="{StaticResource WizardStepLabel}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- ============ 步骤内容区 ============ -->
+        <Grid Grid.Row="2">
+
             <!-- 步骤 1：选择目标硬盘 -->
-            <Border Grid.Column="0" Style="{StaticResource ModernCard}" Margin="0,0,12,0">
+            <Border x:Name="Step1Panel" Style="{StaticResource ModernCard}">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top">
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <Border Width="26" Height="26" CornerRadius="13"
-                                    Background="{StaticResource AccentBrush}">
-                                <TextBlock Text="1" Foreground="White" FontWeight="Bold" FontSize="13"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            </Border>
-                            <TextBlock Text="选择目标硬盘" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       VerticalAlignment="Center" Margin="10,0,0,0" />
-                        </StackPanel>
-                        <TextBlock Text="勾选需要保护的硬盘（可多选）。"
-                                   Style="{StaticResource DescriptionText}" Margin="0,0,0,10" />
+                        <TextBlock Text="你想保护哪些硬盘？" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" />
+                        <TextBlock Text="可以多选。选好后，这些硬盘就能一键上锁。" Style="{StaticResource DescriptionText}" />
+                        <Border Style="{StaticResource InfoBarWarning}" Margin="0,12,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                           Foreground="{StaticResource WarningBrush}"
+                                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBlock Text="系统盘（装着 Windows 的那块盘）不能选，锁住它电脑会开不了机。列表里已经帮你排除了。"
+                                           FontSize="12" Foreground="{StaticResource WarningBrush}"
+                                           TextWrapping="Wrap" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                     <Button DockPanel.Dock="Bottom"
                             Style="{StaticResource SubtleButton}"
-                            HorizontalAlignment="Left" Margin="0,8,0,0"
+                            HorizontalAlignment="Left" Margin="0,10,0,0"
                             Click="RefreshButton_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" />
@@ -66,55 +111,44 @@
                     </Button>
                     <ListBox x:Name="DiskListBox"
                              Style="{StaticResource ModernListBox}"
+                             Margin="0,14,0,8"
                              SelectionMode="Multiple"
                              SelectionChanged="DiskListBox_SelectionChanged" />
                 </DockPanel>
             </Border>
 
             <!-- 步骤 2：设置密码 -->
-            <Border Grid.Column="1" Style="{StaticResource ModernCard}" Margin="0,0,12,0">
-                <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Border Width="26" Height="26" CornerRadius="13"
-                                Background="{StaticResource AccentBrush}">
-                            <TextBlock Text="2" Foreground="White" FontWeight="Bold" FontSize="13"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <TextBlock Text="设置解锁密码" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center" Margin="10,0,0,0" />
-                    </StackPanel>
-                    <TextBlock Text="密码以 BCrypt 哈希保存，绝不存储明文。"
-                               Style="{StaticResource DescriptionText}" Margin="0,0,0,14" />
+            <Border x:Name="Step2Panel" Style="{StaticResource ModernCard}" Visibility="Collapsed">
+                <StackPanel MaxWidth="420" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="设一个解锁密码" FontSize="15" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" />
+                    <TextBlock Text="密码会加密保存在本机，不会明文记录。请务必牢记，忘了密码就没法解锁硬盘了。"
+                               Style="{StaticResource DescriptionText}" Margin="0,0,0,18" />
+
                     <TextBlock Text="密码" Style="{StaticResource LabelText}" Margin="0,0,0,6" />
                     <PasswordBox x:Name="PasswordBox1"
                                  Style="{StaticResource ModernPasswordBox}"
                                  PasswordChanged="PasswordBox_Changed" Margin="0,0,0,12" />
-                    <TextBlock Text="确认密码" Style="{StaticResource LabelText}" Margin="0,0,0,6" />
+                    <TextBlock Text="再输一遍密码" Style="{StaticResource LabelText}" Margin="0,0,0,6" />
                     <PasswordBox x:Name="PasswordBox2"
                                  Style="{StaticResource ModernPasswordBox}"
                                  PasswordChanged="PasswordBox_Changed" />
+                    <TextBlock x:Name="PasswordHintText" Text="" FontSize="12"
+                               Foreground="{StaticResource TextTertiaryBrush}"
+                               TextWrapping="Wrap" Margin="0,12,0,0" />
                 </StackPanel>
             </Border>
 
-            <!-- 步骤 3：基本设置 -->
-            <Border Grid.Column="2" Style="{StaticResource ModernCard}">
-                <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Border Width="26" Height="26" CornerRadius="13"
-                                Background="{StaticResource AccentBrush}">
-                            <TextBlock Text="3" Foreground="White" FontWeight="Bold" FontSize="13"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <TextBlock Text="基本设置" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center" Margin="10,0,0,0" />
-                    </StackPanel>
-                    <TextBlock Text="配置自动锁定与启动行为。"
-                               Style="{StaticResource DescriptionText}" Margin="0,0,0,14" />
-                    <TextBlock Text="无操作自动锁定" Style="{StaticResource LabelText}" Margin="0,0,0,6" />
+            <!-- 步骤 3：行为偏好 -->
+            <Border x:Name="Step3Panel" Style="{StaticResource ModernCard}" Visibility="Collapsed">
+                <StackPanel MaxWidth="440" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="平时想让它怎么保护？" FontSize="15" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6" />
+                    <TextBlock Text="这些以后都能在设置里改。" Style="{StaticResource DescriptionText}" Margin="0,0,0,18" />
+
+                    <TextBlock Text="一段时间不用电脑就自动锁定" Style="{StaticResource LabelText}" Margin="0,0,0,6" />
                     <ComboBox x:Name="TimeoutComboBox"
-                              Style="{StaticResource ModernComboBox}" Margin="0,0,0,18">
+                              Style="{StaticResource ModernComboBox}" Margin="0,0,0,16">
                         <ComboBoxItem Content="禁用" Tag="0" />
                         <ComboBoxItem Content="5 分钟" Tag="5" />
                         <ComboBoxItem Content="10 分钟" Tag="10" />
@@ -122,24 +156,57 @@
                         <ComboBoxItem Content="30 分钟" Tag="30" IsSelected="True" />
                         <ComboBoxItem Content="60 分钟" Tag="60" />
                     </ComboBox>
+
                     <CheckBox x:Name="LockOnScreenLockCheckBox"
-                              Content="系统锁屏时自动锁定"
-                              Style="{StaticResource ModernCheckBox}"
-                              IsChecked="True" Margin="0,0,0,12" />
+                              Content="锁屏时自动锁定"
+                              Style="{StaticResource ModernCheckBox}" IsChecked="True" Margin="0,0,0,12" />
                     <CheckBox x:Name="LockOnSleepCheckBox"
-                              Content="系统休眠/睡眠时自动锁定"
-                              Style="{StaticResource ModernCheckBox}"
-                              IsChecked="True" Margin="0,0,0,12" />
+                              Content="电脑睡眠时自动锁定"
+                              Style="{StaticResource ModernCheckBox}" IsChecked="True" Margin="0,0,0,12" />
                     <CheckBox x:Name="AutoStartCheckBox"
-                              Content="开机自动启动"
-                              Style="{StaticResource ModernCheckBox}"
-                              IsChecked="True" />
+                              Content="开机自动启动（推荐）"
+                              Style="{StaticResource ModernCheckBox}" IsChecked="True" />
+                </StackPanel>
+            </Border>
+
+            <!-- 步骤 4：汇总确认 -->
+            <Border x:Name="Step4Panel" Style="{StaticResource ModernCard}" Visibility="Collapsed">
+                <StackPanel MaxWidth="480" HorizontalAlignment="Center">
+                    <TextBlock Text="都设置好了，确认一下" FontSize="15" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,14" />
+                    <Border Style="{StaticResource ModernCard}" Padding="18" Margin="0,0,0,14" Effect="{x:Null}">
+                        <StackPanel>
+                            <TextBlock Text="要保护的硬盘" Style="{StaticResource LabelText}" Margin="0,0,0,4" />
+                            <TextBlock x:Name="SummaryDisksText" Text="--" FontSize="13"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       TextWrapping="Wrap" Margin="0,0,0,12" />
+                            <TextBlock Text="解锁密码" Style="{StaticResource LabelText}" Margin="0,0,0,4" />
+                            <TextBlock x:Name="SummaryPasswordText" Text="--" FontSize="13"
+                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12" />
+                            <TextBlock Text="自动锁定" Style="{StaticResource LabelText}" Margin="0,0,0,4" />
+                            <TextBlock x:Name="SummaryTimeoutText" Text="--" FontSize="13"
+                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12" />
+                            <TextBlock Text="其他行为" Style="{StaticResource LabelText}" Margin="0,0,0,4" />
+                            <TextBlock x:Name="SummaryBehaviorText" Text="--" FontSize="13"
+                                       Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource InfoBarWarning}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock Text="点“完成配置”后，这些硬盘会立刻被锁定，要用密码才能解锁。请确认密码记牢了。"
+                                       FontSize="12" Foreground="{StaticResource WarningBrush}"
+                                       TextWrapping="Wrap" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
         </Grid>
 
-        <!-- ============ 底部状态栏 ============ -->
-        <Grid Grid.Row="2">
+        <!-- ============ 底部按钮区 ============ -->
+        <Grid Grid.Row="3" Margin="0,16,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -148,10 +215,12 @@
                        FontSize="12" Foreground="{StaticResource DangerBrush}"
                        VerticalAlignment="Center" TextWrapping="Wrap" Margin="2,0,16,0" />
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="取消" Style="{StaticResource SecondaryButton}"
-                        Margin="0,0,10,0" Click="CancelButton_Click" />
-                <Button Content="完成配置" Style="{StaticResource PrimaryButton}"
-                        Click="FinishButton_Click" />
+                <Button x:Name="PrevButton" Content="上一步" Style="{StaticResource SecondaryButton}"
+                        Height="40" Padding="22,0" Margin="0,0,10,0" Click="PrevButton_Click" />
+                <Button x:Name="NextButton" Content="下一步" Style="{StaticResource PrimaryButton}"
+                        Height="40" Padding="26,0" Click="NextButton_Click" />
+                <Button Content="取消" Style="{StaticResource SubtleButton}"
+                        Margin="12,0,0,0" VerticalAlignment="Center" Click="CancelButton_Click" />
             </StackPanel>
         </Grid>
     </Grid>
