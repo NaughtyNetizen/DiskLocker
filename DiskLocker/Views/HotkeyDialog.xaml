@@ -1,0 +1,61 @@
+<Window x:Class="DiskLocker.Views.HotkeyDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="设置呼出解锁窗口的快捷键"
+        Width="500" SizeToContent="Height"
+        Style="{StaticResource DialogWindow}"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <StackPanel Margin="28,24,28,24">
+
+        <TextBlock Text="设置呼出解锁窗口的快捷键" FontSize="16" FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" />
+        <TextBlock Text="按下你想要的组合键，建议至少包含 Ctrl 或 Alt，避免与系统快捷键冲突。"
+                   Style="{StaticResource MetaText}" Margin="0,6,0,0" />
+
+        <!-- 录制区：聚焦时捕获按键组合 -->
+        <Border x:Name="RecordBox" Margin="0,20,0,0" Height="92"
+                Background="{DynamicResource InputBrush}"
+                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5"
+                CornerRadius="12" Cursor="Hand" MouseLeftButtonDown="RecordBox_Click">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Border Style="{StaticResource Kbd}" Background="Transparent" BorderThickness="0" Padding="0">
+                    <TextBlock x:Name="ComboText" Text="Ctrl + Alt + L"
+                               FontFamily="{DynamicResource MonoFontFamily}"
+                               FontSize="19" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                </Border>
+                <TextBlock x:Name="RecordHint" Style="{StaticResource MetaText}" Margin="0,8,0,0"
+                           Text="正在录制… 请按下新的组合键" />
+            </StackPanel>
+        </Border>
+
+        <Border x:Name="ConflictBar" Style="{StaticResource InfoBarWarn}" Margin="0,14,0,0" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE7BA;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                           FontSize="14" Foreground="{DynamicResource WarnBrush}"
+                           VerticalAlignment="Center" Margin="0,0,10,0" />
+                <TextBlock x:Name="ConflictText" Text="这个组合键已被其他程序占用，保存后可能失效，建议换一个。"
+                           Style="{StaticResource MetaText}"
+                           Foreground="{DynamicResource PillWarnTextBrush}" VerticalAlignment="Center"
+                           MaxWidth="360" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+
+        <Button Style="{StaticResource SecondaryButton}" Height="30" Padding="13,0" Margin="0,14,0,0"
+                HorizontalAlignment="Left" Click="Reset_Click">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE72C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                           FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock Text="恢复默认 Ctrl + Alt + L" VerticalAlignment="Center" />
+            </StackPanel>
+        </Button>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+            <Button Content="取消" Style="{StaticResource SecondaryButton}" MinWidth="86" Click="Cancel_Click" />
+            <Button x:Name="SaveBtn" Content="保存快捷键" Style="{StaticResource LargePrimaryButton}"
+                    MinWidth="110" Margin="10,0,0,0" Click="Save_Click" />
+        </StackPanel>
+    </StackPanel>
+</Window>

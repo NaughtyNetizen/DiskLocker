@@ -262,4 +262,20 @@ internal static class WinApi
 
     /// <summary>圆角偏好：系统默认圆角</summary>
     public const int DWMWCP_ROUND = 2;
+
+    // ===== 扩展窗口样式（Toast / 托盘浮层） =====
+
+    public const int GWL_EXSTYLE = -20;
+
+    /// <summary>窗口不出现在任务栏与 Alt+Tab</summary>
+    public const int WS_EX_TOOLWINDOW = 0x00000080;
+
+    /// <summary>点击与显示都不抢占焦点，避免打断用户输入</summary>
+    public const int WS_EX_NOACTIVATE = 0x08000000;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll")]
+    public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 }

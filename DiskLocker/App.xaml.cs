@@ -2,12 +2,10 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Input;
 using DiskLocker.Models;
 using DiskLocker.Services;
+using DiskLocker.ViewModels;
 using DiskLocker.Views;
-using Application = System.Windows.Application;
-using MessageBox = System.Windows.MessageBox;
 using NotifyIcon = System.Windows.Forms.NotifyIcon;
 using ContextMenuStrip = System.Windows.Forms.ContextMenuStrip;
 using ToolTipIcon = System.Windows.Forms.ToolTipIcon;
@@ -15,155 +13,130 @@ using ToolTipIcon = System.Windows.Forms.ToolTipIcon;
 namespace DiskLocker;
 
 /// <summary>
-/// 应用程序入口 - 管理生命周期、系统托盘、全局协调
+/// 应用入口：生命周期、系统托盘、全局协调。
+/// 启动不再阻塞 —— 先把后台（设备监听 + 自动锁定 + 热键 + 托盘）跑起来，
+/// 首次运行只在托盘提示一次并打开单屏「快速开始」，跳过也能正常使用。
 /// </summary>
 public partial class App : Application
 {
+    public static App Instance { get; private set; } = null!;
+
+    public static string AppVersion { get; } =
+        typeof(App).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
+
     private LockManager? _lockManager;
     private NotifyIcon? _notifyIcon;
     private Mutex? _singleInstanceMutex;
-    private SettingsWindow? _settingsWindow;
+    private MainWindow? _mainWindow;
+    private Window? _trayMenuWindow;
     private bool _isShuttingDown;
 
-    // 缓存的图标
     private static readonly Icon LockedIcon = CreateLockIcon(true);
     private static readonly Icon UnlockedIcon = CreateLockIcon(false);
 
     [DllImport("user32.dll")]
     private static extern bool DestroyIcon(IntPtr handle);
 
-    // ===================== 应用生命周期 =====================
+    // ===================== 生命周期 =====================
 
     private void Application_Startup(object sender, StartupEventArgs e)
     {
-        // 【D-07 修复】注册全局异常处理，防止 UI/后台线程未捕获异常导致静默崩溃
-        this.DispatcherUnhandledException += App_DispatcherUnhandledException;
-        AppDomain.CurrentDomain.UnhandledException += App_DomainUnhandledException;
-        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += App_UnobservedTaskException;
+        Instance = this;
 
-        // 单实例检查
+        DispatcherUnhandledException += App_DispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += App_DomainUnhandledException;
+        TaskScheduler.UnobservedTaskException += App_UnobservedTaskException;
+
         _singleInstanceMutex = new Mutex(true, "DiskLocker_SingleInstance_Mutex", out bool createdNew);
         if (!createdNew)
         {
-            MessageBox.Show("DiskLocker 已经在运行中。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            // 设计稿：重复启动只提示，不再拉起第二份后台
+            MessageBox.Show("DiskLocker 已经在后台运行了，可以在系统托盘里找到它。",
+                "DiskLocker", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown();
             return;
         }
 
-        // 创建锁管理器并加载设置
         _lockManager = new LockManager();
         _lockManager.Settings.Load();
 
-        // 系统会话结束（注销/关机）时保持锁定状态，不自动解锁
+        ThemeService.Initialize(_lockManager.Settings.Current.ThemeMode);
+        ThemeService.ThemeChanged += OnThemeChanged;
 
-        // 检查是否已配置
-        if (!_lockManager.Settings.Current.IsConfigured ||
-            string.IsNullOrEmpty(_lockManager.Settings.Current.PasswordHash) ||
-            _lockManager.Settings.Current.TargetDisks.Count == 0)
+        StartBackgroundMode();
+
+        // 未配置：托盘提示一次 + 打开快速开始；跳过也能先跑起来
+        if (!_lockManager.HasProtectionConfig && !_lockManager.Settings.Current.QuickStartPrompted)
         {
-            // 首次运行，显示配置向导
-            ShowSetupWizard();
-        }
-        else
-        {
-            // 已配置，直接进入后台模式
-            StartBackgroundMode();
+            _lockManager.Settings.Current.QuickStartPrompted = true;
+            _lockManager.Settings.Save();
+            ShowBalloon("硬盘还没有被保护，点一下就能开始。", ToolTipIcon.Info);
+            Dispatcher.BeginInvoke(new Action(() => OpenQuickStart(null)),
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
     }
 
     private void Application_Exit(object sender, ExitEventArgs e)
     {
+        ThemeService.ThemeChanged -= OnThemeChanged;
         _lockManager?.Dispose();
         try { _singleInstanceMutex?.ReleaseMutex(); } catch { }
     }
 
-    // ===================== 全局异常处理（D-07 修复） =====================
+    private void OnThemeChanged()
+    {
+        UpdateTrayIcon();
+        if (_mainWindow is { IsLoaded: true })
+        {
+            _mainWindow.UpdateStatus();
+            _mainWindow.RefreshAfterThemeChange();
+        }
+    }
 
-    private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    // ===================== 全局异常处理 =====================
+
+    private void App_DispatcherUnhandledException(object sender,
+        System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         SimpleLogger.Log($"[FATAL] DispatcherUnhandledException: {e.Exception}");
-        try { ShowBalloon($"发生错误: {e.Exception.Message}", ToolTipIcon.Error); } catch { }
-        e.Handled = true; // 防止 UI 线程未捕获异常导致静默崩溃
+        try { ToastService.Show(ActivitySeverity.Error, "出错了", e.Exception.Message); } catch { }
+        e.Handled = true;
     }
 
     private void App_DomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
-        var ex = e.ExceptionObject as Exception;
-        SimpleLogger.Log($"[FATAL] AppDomain.UnhandledException (terminating={e.IsTerminating}): {ex}");
+        SimpleLogger.Log($"[FATAL] AppDomain.UnhandledException (terminating={e.IsTerminating}): {e.ExceptionObject}");
     }
 
-    private void App_UnobservedTaskException(object? sender, System.Threading.Tasks.UnobservedTaskExceptionEventArgs e)
+    private void App_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
         SimpleLogger.Log($"[FATAL] UnobservedTaskException: {e.Exception}");
-        e.SetObserved(); // 防止未观察的 Task 异常终止进程
+        e.SetObserved();
     }
 
-    // ===================== 配置向导 =====================
-
-    private void ShowSetupWizard()
-    {
-        var wizard = new SetupWizard();
-        wizard.OnConfigured = (disks, password, timeout, lockOnScreenLock, lockOnSleep, autoStart) =>
-        {
-            // 保存配置
-            var settings = _lockManager!.Settings.Current;
-            settings.IsConfigured = true;
-            settings.TargetDisks = disks.Select(d => new TargetDiskEntry
-            {
-                Model = d.Model,
-                SerialNumber = d.SerialNumber,
-                PnpDeviceId = d.PnpDeviceId
-            }).ToList();
-            settings.PasswordHash = _lockManager.Password.HashPassword(password);
-            settings.IdleLockTimeoutMinutes = timeout;
-            settings.LockOnScreenLock = lockOnScreenLock;
-            settings.LockOnSleep = lockOnSleep;
-            settings.AutoStartWithWindows = autoStart;
-            _lockManager.Settings.Save();
-
-            // 设置开机自启
-            _lockManager.AutoStart.SetAutoStart(autoStart);
-
-            // 进入后台模式
-            StartBackgroundMode();
-        };
-
-        wizard.ShowDialog();
-
-        // 用户取消配置向导则退出
-        if (wizard.DialogResult != true && _lockManager?.Settings.Current.IsConfigured != true)
-        {
-            Shutdown();
-        }
-    }
-
-    // ===================== 后台模式启动 =====================
+    // ===================== 后台模式 =====================
 
     private void StartBackgroundMode()
     {
         if (_lockManager == null) return;
 
-        // 绑定事件
         _lockManager.StateChanged += OnStateChanged;
         _lockManager.RequestUnlockDialog += OnRequestUnlockDialog;
         _lockManager.ErrorOccurred += OnErrorOccurred;
+        _lockManager.NotifyUser += OnNotifyUser;
 
-        // 初始化所有服务（设备监听、自动锁定、全局热键）
-        // 【D-07 修复】加启动韧性：Initialize 失败不致整个应用起不来，仍创建托盘让用户感知
         try
         {
             _lockManager.Initialize();
         }
         catch (Exception ex)
         {
+            // 初始化失败也要留下托盘图标，用户才能感知并退出
             SimpleLogger.Log($"[FATAL] Initialize failed: {ex}");
         }
 
-        // 创建系统托盘
         InitializeTray();
         UpdateTrayIcon();
-
-        // 静默启动，不显示主窗口
     }
 
     // ===================== 系统托盘 =====================
@@ -177,134 +150,266 @@ public partial class App : Application
             Visible = true
         };
 
-        // 右键菜单
-        var menu = new ContextMenuStrip();
-        menu.Items.Add("解锁硬盘", null, OnTrayUnlock);
-        menu.Items.Add("锁定硬盘", null, OnTrayLock);
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-        menu.Items.Add("打开设置", null, OnTraySettings);
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-        menu.Items.Add("退出程序", null, OnTrayExit);
+        // 左键开主窗口，中键呼出解锁，右键自绘菜单
+        _notifyIcon.MouseClick += OnTrayMouseClick;
+    }
 
-        _notifyIcon.ContextMenuStrip = menu;
-        _notifyIcon.DoubleClick += (s, e) => OnTrayUnlock(s, e);
+    private void OnTrayMouseClick(object? sender, System.Windows.Forms.MouseEventArgs e)
+    {
+        switch (e.Button)
+        {
+            case System.Windows.Forms.MouseButtons.Right:
+                ShowTrayMenu();
+                break;
+            case System.Windows.Forms.MouseButtons.Left:
+                ShowMainWindow();
+                break;
+            case System.Windows.Forms.MouseButtons.Middle:
+                RequestUnlock();
+                break;
+        }
+    }
+
+    /// <summary>托盘右键菜单（设计稿 T1）：顶部状态区 + 全部常用操作</summary>
+    private void ShowTrayMenu()
+    {
+        if (_lockManager == null) return;
+
+        var settings = _lockManager.Settings.Current;
+        var count = settings.TargetDisks.Count;
+        var locked = _lockManager.IsLocked;
+        var hotkey = settings.HotKeyDisplayText;
+
+        string headerTitle, headerSub, accentKey;
+        if (count == 0)
+        {
+            headerTitle = "未设置";
+            headerSub = "还没有要保护的硬盘";
+            accentKey = "TextMutedBrush";
+        }
+        else if (!_lockManager.IsTargetConnected)
+        {
+            headerTitle = "未连接";
+            headerSub = $"{count} 块硬盘当前没插入";
+            accentKey = "TextMutedBrush";
+        }
+        else if (locked)
+        {
+            var letters = _lockManager.GetAllTargetDriveLetters();
+            headerTitle = "已锁定";
+            headerSub = letters.Count > 0
+                ? $"{count} 块硬盘已保护 · 盘符 {DiskState.JoinLetters(letters)}"
+                : $"{count} 块硬盘已保护 · 盘符已隐藏";
+            accentKey = "AccentBrush";
+        }
+        else
+        {
+            headerTitle = "已解锁";
+            headerSub = $"{count} 块硬盘可以正常访问";
+            accentKey = "WarnBrush";
+        }
+
+        var brush = TryFindResource(accentKey) as System.Windows.Media.Brush
+                    ?? System.Windows.Media.Brushes.Transparent;
+
+        var paused = _lockManager.IsAutoLockPaused;
+        var items = new List<MenuSpec>
+        {
+            new(locked ? "解锁硬盘" : "锁定硬盘", locked ? "\uE785" : "\uE72E",
+                locked ? (Action)RequestUnlock : RequestLock, Hint: hotkey),
+            new("打开 DiskLocker", "\uE80F", () => ShowMainWindow()),
+            new("查看活动记录", "\uE823", () => ShowMainWindow("Activity")),
+            new("开始保护…", "\uE72E", () => OpenQuickStart(_mainWindow),
+                Enabled: !_lockManager.HasProtectionConfig),
+            new("-", null, null),
+            new(paused ? "恢复自动锁定" : "暂停自动锁定", paused ? "\uE768" : "\uE769",
+                paused ? _lockManager.ResumeAutoLock
+                       : () => _lockManager.PauseAutoLock(TimeSpan.FromHours(1)),
+                Hint: paused ? null : "1 小时"),
+            new("退出 DiskLocker", "\uE7E8", ExitApp, Hint: "硬盘保持锁定", Danger: true)
+        };
+
+        var panel = FlyoutMenu.BuildPanel(items, new MenuHeader(headerTitle, headerSub, brush), 286);
+
+        _trayMenuWindow?.Close();
+        _trayMenuWindow = new Window
+        {
+            Content = panel,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = System.Windows.Media.Brushes.Transparent,
+            ShowInTaskbar = false,
+            ShowActivated = false,
+            Topmost = true,
+            ResizeMode = ResizeMode.NoResize
+        };
+        _trayMenuWindow.SourceInitialized += (_, _) =>
+            Native.ToastExStyle.ApplyNoActivate(_trayMenuWindow!);
+        _trayMenuWindow.Closed += (_, _) => _trayMenuWindow = null;
+
+        PositionAtCursor(_trayMenuWindow, 296);
+        _trayMenuWindow.Show();
+
+        // 点到别处就收起
+        _trayMenuWindow.LostFocus += (_, _) => _trayMenuWindow?.Close();
+        _trayMenuWindow.MouseLeftButtonUp += (_, _) => _trayMenuWindow?.Close();
+    }
+
+    /// <summary>把浮层窗口摆到鼠标处（物理像素转 WPF 单位），并避免超出屏幕</summary>
+    private void PositionAtCursor(Window window, double width)
+    {
+        var scale = DesktopScale();
+        var px = System.Windows.Forms.Cursor.Position;
+
+        var wa = SystemParameters.WorkArea;
+        var left = Math.Min(px.X / scale, wa.Right - width - 6);
+        var top = Math.Min(px.Y / scale, wa.Bottom - 340);
+        window.Left = Math.Max(wa.Left, left);
+        window.Top = Math.Max(wa.Top, top);
+    }
+
+    /// <summary>用主屏物理宽度与 WPF 逻辑宽度之比换算 DPI 缩放，避免依赖窗口句柄时序</summary>
+    private static double DesktopScale()
+    {
+        try
+        {
+            var physical = System.Windows.Forms.Screen.PrimaryScreen?.Bounds.Width
+                           ?? (int)SystemParameters.PrimaryScreenWidth;
+            var logical = SystemParameters.PrimaryScreenWidth;
+            if (logical <= 0) return 1.0;
+            var scale = physical / logical;
+            return scale > 0.5 ? scale : 1.0;
+        }
+        catch
+        {
+            return 1.0;
+        }
     }
 
     private void UpdateTrayIcon()
     {
         if (_notifyIcon == null || _lockManager == null) return;
-
-        _notifyIcon.Text = _lockManager.GetStatusText();
+        // 托盘 Text 上限 63 字符，超了会抛异常
+        _notifyIcon.Text = Truncate(_lockManager.GetStatusText(), 63);
         _notifyIcon.Icon = _lockManager.IsLocked ? LockedIcon : UnlockedIcon;
     }
 
-    // ===================== 托盘菜单事件 =====================
-
-    private void OnTrayUnlock(object? sender, EventArgs e)
-    {
-        ShowUnlockDialog();
-    }
-
-    private void OnTrayLock(object? sender, EventArgs e)
-    {
-        if (_lockManager == null) return;
-
-        if (!_lockManager.IsTargetConnected)
-        {
-            ShowBalloon("目标硬盘未连接", ToolTipIcon.Warning);
-            return;
-        }
-
-        if (_lockManager.IsLocked)
-        {
-            ShowBalloon("硬盘已处于锁定状态", ToolTipIcon.Info);
-            return;
-        }
-
-        if (_lockManager.LockDisk())
-        {
-            ShowBalloon("硬盘已锁定，盘符已隐藏", ToolTipIcon.Info);
-        }
-    }
-
-    private void OnTraySettings(object? sender, EventArgs e)
-    {
-        ShowSettingsWindow();
-    }
-
-    private void OnTrayExit(object? sender, EventArgs e)
-    {
-        ExitApp();
-    }
+    private static string Truncate(string text, int max) =>
+        text.Length <= max ? text : text[..max];
 
     // ===================== LockManager 事件 =====================
 
     private void OnStateChanged()
     {
-        UpdateTrayIcon();
-
-        // 如果设置窗口打开，更新其状态
-        if (_settingsWindow != null && _settingsWindow.IsLoaded)
+        Dispatcher.BeginInvoke(() =>
         {
-            _settingsWindow.Dispatcher.Invoke(() => _settingsWindow.UpdateStatus());
-        }
+            UpdateTrayIcon();
+            _mainWindow?.UpdateStatus();
+        });
     }
 
-    private void OnRequestUnlockDialog()
-    {
-        ShowUnlockDialog();
-    }
+    private void OnRequestUnlockDialog() => RequestUnlock();
 
-    private void OnErrorOccurred(string error)
-    {
-        ShowBalloon(error, ToolTipIcon.Warning);
-    }
+    private void OnErrorOccurred(string error) =>
+        Dispatcher.BeginInvoke(() => ToastService.Show(ActivitySeverity.Warning, "需要留意", error));
 
-    // ===================== 对话框 =====================
+    private void OnNotifyUser(ActivitySeverity severity, string title, string detail) =>
+        ToastService.Show(severity, title, detail);
 
-    private void ShowUnlockDialog()
-    {
-        if (_lockManager == null || _isShuttingDown) return;
+    // ===================== 对外操作入口 =====================
 
-        SimpleLogger.Log($"ShowUnlockDialog: IsLocked={_lockManager.IsLocked}, IsTargetConnected={_lockManager.IsTargetConnected}");
-
-        if (!_lockManager.IsLocked)
-        {
-            ShowBalloon("硬盘已解锁，无需操作", ToolTipIcon.Info);
-            return;
-        }
-
-        // 即使 IsTargetConnected 瞬间为 false，只要处于锁定状态就允许尝试解锁
-        // （RestoreDiskInternal 内部有自己的磁盘检测和回退方案）
-        if (!_lockManager.IsTargetConnected)
-        {
-            SimpleLogger.Log("ShowUnlockDialog: IsTargetConnected=false but IsLocked=true, refreshing connection state...");
-            _lockManager.RefreshConnectionState();
-        }
-
-        // 显示密码对话框
-        var dialog = new PasswordDialog(_lockManager)
-        {
-            Topmost = true
-        };
-        dialog.ShowDialog();
-
-        UpdateTrayIcon();
-    }
-
-    private void ShowSettingsWindow()
+    public void ShowMainWindow(string? page = null)
     {
         if (_lockManager == null) return;
 
-        if (_settingsWindow == null || !_settingsWindow.IsLoaded)
+        if (_mainWindow == null || !_mainWindow.IsLoaded)
         {
-            _settingsWindow = new SettingsWindow(_lockManager);
-            _settingsWindow.Closed += (s, e) => _settingsWindow = null;
+            _mainWindow = new MainWindow(_lockManager);
+            _mainWindow.Closed += (_, _) => _mainWindow = null;
         }
 
-        _settingsWindow.Show();
-        _settingsWindow.Activate();
-        _settingsWindow.UpdateStatus();
+        _mainWindow.Present();
+        if (page != null) _mainWindow.ShowPage(page);
+    }
+
+    /// <summary>呼出解锁弹窗（托盘 / 热键 / 侧栏按钮）</summary>
+    public void RequestUnlock()
+    {
+        if (_lockManager == null || _isShuttingDown) return;
+
+        if (!_lockManager.HasProtectionConfig)
+        {
+            OpenQuickStart(_mainWindow);
+            return;
+        }
+
+        if (!_lockManager.IsLocked)
+        {
+            ToastService.Show(ActivitySeverity.Info, "硬盘已解锁", "当前不需要输入密码。");
+            return;
+        }
+
+        ShowUnlockDialog(_mainWindow);
+    }
+
+    /// <summary>解锁弹窗；owner 为空时居中置顶</summary>
+    public void ShowUnlockDialog(Window? owner)
+    {
+        if (_lockManager == null) return;
+        var dialog = new UnlockDialog(_lockManager)
+        {
+            Owner = owner,
+            Topmost = true
+        };
+        dialog.ShowDialog();
+        UpdateTrayIcon();
+    }
+
+    /// <summary>一键锁定全部硬盘（侧栏 / 概览 / 托盘共用）</summary>
+    public void RequestLock()
+    {
+        if (_lockManager == null || _isShuttingDown) return;
+
+        if (!_lockManager.HasProtectionConfig)
+        {
+            OpenQuickStart(_mainWindow);
+            return;
+        }
+
+        if (!_lockManager.IsTargetConnected)
+        {
+            ToastService.Show(ActivitySeverity.Warning, "无法锁定", "目标硬盘当前没有连接到电脑。");
+            return;
+        }
+
+        if (_lockManager.IsLocked)
+        {
+            ToastService.Show(ActivitySeverity.Info, "已经在保护中", "硬盘的盘符已经隐藏了。");
+            return;
+        }
+
+        _lockManager.LockDisk(toast: true);
+        UpdateTrayIcon();
+    }
+
+    /// <summary>快速开始：非模态，跳过也不影响后台运行</summary>
+    public void OpenQuickStart(Window? owner)
+    {
+        if (_lockManager == null) return;
+
+        var dialog = new QuickStartDialog(_lockManager)
+        {
+            Owner = owner,
+            Topmost = true
+        };
+        dialog.Completed += () =>
+        {
+            UpdateTrayIcon();
+            _mainWindow?.UpdateStatus();
+            _mainWindow?.RefreshAfterThemeChange();
+        };
+        dialog.Show();
     }
 
     // ===================== 退出 =====================
@@ -312,15 +417,21 @@ public partial class App : Application
     private void ExitApp()
     {
         if (_isShuttingDown) return;
+
+        var confirmed = ConfirmDialog.Show(_mainWindow,
+            "退出 DiskLocker？",
+            _lockManager?.IsLocked == true
+                ? "硬盘当前处于锁定状态。退出后盘符仍然隐藏，需要重新运行并用密码解锁。"
+                : "退出后硬盘不再受保护，也不会再自动锁定。",
+            "退出 DiskLocker", danger: true);
+        if (!confirmed) return;
+
         _isShuttingDown = true;
 
-        // 关闭设置窗口
-        _settingsWindow?.Close();
-
-        // 关闭所有服务并恢复磁盘
+        _trayMenuWindow?.Close();
+        _mainWindow?.Close();
         _lockManager?.Shutdown();
 
-        // 隐藏托盘图标
         if (_notifyIcon != null)
         {
             _notifyIcon.Visible = false;
@@ -328,44 +439,36 @@ public partial class App : Application
             _notifyIcon = null;
         }
 
-        // 退出应用
         Shutdown(0);
     }
 
-    // ===================== 辅助方法 =====================
-
     private void ShowBalloon(string text, ToolTipIcon icon)
     {
-        // 【D-20 修复】错误回调可能来自非 UI 线程（DeviceWatcherService Timer），
-        // 需 marshal 到 UI 线程后再操作 WinForms NotifyIcon，避免跨线程异常
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            _notifyIcon?.ShowBalloonTip(3000, "DiskLocker", text, icon);
+            _notifyIcon?.ShowBalloonTip(4000, "DiskLocker", text, icon);
         }));
     }
 
-    /// <summary>
-    /// 绘制锁形图标（红色=已锁定，蓝色=已解锁）
-    /// </summary>
+    // ===================== 托盘图标绘制 =====================
+
+    /// <summary>锁形图标：锁定用主色蓝，解锁用注意色橙，与界面同一套语义色</summary>
     private static Icon CreateLockIcon(bool isLocked)
     {
         using var bitmap = new Bitmap(32, 32);
         using var g = Graphics.FromImage(bitmap);
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.Clear(Color.Transparent);
+        g.Clear(System.Drawing.Color.Transparent);
 
-        // 锁体颜色：锁定=红色，解锁=蓝色
         var color = isLocked
-            ? Color.FromArgb(208, 52, 56)
-            : Color.FromArgb(0, 120, 215);
+            ? System.Drawing.Color.FromArgb(76, 141, 255)   // #4C8DFF
+            : System.Drawing.Color.FromArgb(245, 166, 35);  // #F5A623
 
-        // 锁体（圆角矩形）
         using var bodyBrush = new SolidBrush(color);
         var bodyRect = new Rectangle(7, 13, 18, 16);
         using var bodyPath = CreateRoundedRect(bodyRect, 3);
         g.FillPath(bodyBrush, bodyPath);
 
-        // 锁扣（弧形）
         using var pen = new Pen(color, 3.5f)
         {
             StartCap = LineCap.Round,
@@ -373,14 +476,13 @@ public partial class App : Application
         };
         g.DrawArc(pen, 10, 5, 12, 14, 180, 180);
 
-        // 钥匙孔
-        g.FillEllipse(Brushes.White, 14, 18, 4, 4);
-        g.FillRectangle(Brushes.White, 15, 21, 2, 5);
+        g.FillEllipse(System.Drawing.Brushes.White, 14, 18, 4, 4);
+        g.FillRectangle(System.Drawing.Brushes.White, 15, 21, 2, 5);
 
         var handle = bitmap.GetHicon();
-        // 【D-25 修复】Icon.FromHandle 不接管句柄所有权，需 Clone 后 DestroyIcon 释放原始句柄
         try
         {
+            // Icon.FromHandle 不接管句柄，Clone 后再销毁原始句柄，避免 GDI 泄漏
             return (Icon)Icon.FromHandle(handle).Clone();
         }
         finally
@@ -389,9 +491,6 @@ public partial class App : Application
         }
     }
 
-    /// <summary>
-    /// 创建圆角矩形路径
-    /// </summary>
     private static GraphicsPath CreateRoundedRect(Rectangle rect, int radius)
     {
         var path = new GraphicsPath();

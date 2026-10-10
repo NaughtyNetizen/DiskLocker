@@ -2,8 +2,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using Button = System.Windows.Controls.Button;
-using Point = System.Windows.Point;
 
 namespace DiskLocker.Behaviors;
 
@@ -77,6 +75,68 @@ public static class WindowBehavior
         {
             if (Window.GetWindow(d) is Window window)
                 window.Close();
+        }
+    }
+
+    // ===================== 标题栏最小化 / 最大化按钮 =====================
+
+    public static readonly DependencyProperty IsMinimizeButtonProperty =
+        DependencyProperty.RegisterAttached(
+            "IsMinimizeButton", typeof(bool), typeof(WindowBehavior),
+            new PropertyMetadata(false, OnMinimizeButtonChanged));
+
+    public static bool GetIsMinimizeButton(DependencyObject obj) =>
+        (bool)obj.GetValue(IsMinimizeButtonProperty);
+
+    public static void SetIsMinimizeButton(DependencyObject obj, bool value) =>
+        obj.SetValue(IsMinimizeButtonProperty, value);
+
+    private static void OnMinimizeButtonChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is Button button)
+        {
+            if ((bool)e.NewValue)
+                button.Click += MinimizeOnClick;
+            else
+                button.Click -= MinimizeOnClick;
+        }
+    }
+
+    private static void MinimizeOnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is DependencyObject d && Window.GetWindow(d) is Window window)
+            window.WindowState = WindowState.Minimized;
+    }
+
+    public static readonly DependencyProperty IsMaximizeButtonProperty =
+        DependencyProperty.RegisterAttached(
+            "IsMaximizeButton", typeof(bool), typeof(WindowBehavior),
+            new PropertyMetadata(false, OnMaximizeButtonChanged));
+
+    public static bool GetIsMaximizeButton(DependencyObject obj) =>
+        (bool)obj.GetValue(IsMaximizeButtonProperty);
+
+    public static void SetIsMaximizeButton(DependencyObject obj, bool value) =>
+        obj.SetValue(IsMaximizeButtonProperty, value);
+
+    private static void OnMaximizeButtonChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is Button button)
+        {
+            if ((bool)e.NewValue)
+                button.Click += MaximizeOnClick;
+            else
+                button.Click -= MaximizeOnClick;
+        }
+    }
+
+    private static void MaximizeOnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is DependencyObject d && Window.GetWindow(d) is Window window)
+        {
+            window.WindowState = window.WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
         }
     }
 

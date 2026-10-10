@@ -5,6 +5,14 @@ using static DiskLocker.Native.WinApi;
 
 namespace DiskLocker.Services;
 
+/// <summary>自动锁定的触发来源，用于活动记录区分文案</summary>
+public enum AutoLockReason
+{
+    Idle,
+    SessionLock,
+    Sleep
+}
+
 /// <summary>
 /// 自动锁定服务
 /// 支持三种自动锁定触发方式：无操作超时、系统锁屏、系统休眠
@@ -14,8 +22,8 @@ public class AutoLockService : IDisposable
     private readonly DispatcherTimer _idleTimer;
     private bool _disposed;
 
-    /// <summary>触发自动锁定</summary>
-    public event Action? AutoLockTriggered;
+    /// <summary>触发自动锁定（携带触发来源）</summary>
+    public event Action<AutoLockReason>? AutoLockTriggered;
 
     /// <summary>无操作超时时间（分钟，0 = 禁用）</summary>
     public int IdleTimeoutMinutes { get; set; } = 30;
@@ -31,6 +39,12 @@ public class AutoLockService : IDisposable
 
     /// <summary>解锁后的宽限期截止时间（在此期间不触发自动锁定）</summary>
     private DateTime _gracePeriodEnd = DateTime.MinValue;
+
+    /// <summary>用户主动「暂停自动锁定」的截止时间</summary>
+    private DateTime _pausedUntil = DateTime.MinValue;
+
+    /// <summary>当前是否处于暂停自动锁定状态</summary>
+    public bool IsPaused => DateTime.UtcNow < _pausedUntil;
 
     public AutoLockService()
     {
@@ -72,20 +86,35 @@ public class AutoLockService : IDisposable
         _gracePeriodEnd = DateTime.UtcNow.AddSeconds(seconds);
     }
 
+    /// <summary>暂停自动锁定（三种触发方式一起暂停），到期自动恢复</summary>
+    public void Pause(TimeSpan span)
+    {
+        _pausedUntil = DateTime.UtcNow + span;
+    }
+
+    /// <summary>立即恢复自动锁定</summary>
+    public void Resume()
+    {
+        _pausedUntil = DateTime.MinValue;
+    }
+
+    /// <summary>暂停期或解锁宽限期内都不触发自动锁定</summary>
+    private bool Blocked() => IsPaused || DateTime.UtcNow < _gracePeriodEnd;
+
     private void OnIdleTimerTick(object? sender, EventArgs e)
     {
         if (IsLocked || IdleTimeoutMinutes <= 0)
             return;
 
-        // 宽限期内不触发自动锁定
-        if (DateTime.UtcNow < _gracePeriodEnd)
+        // 宽限期 / 暂停期内不触发自动锁定
+        if (Blocked())
             return;
 
         var idleMinutes = GetIdleTimeMinutes();
         if (idleMinutes >= IdleTimeoutMinutes)
         {
             IsLocked = true;
-            AutoLockTriggered?.Invoke();
+            AutoLockTriggered?.Invoke(AutoLockReason.Idle);
         }
     }
 
@@ -113,8 +142,9 @@ public class AutoLockService : IDisposable
         if (e.Reason == SessionSwitchReason.SessionLock ||
             e.Reason == SessionSwitchReason.ConsoleDisconnect)
         {
+            if (Blocked()) return;
             IsLocked = true;
-            AutoLockTriggered?.Invoke();
+            AutoLockTriggered?.Invoke(AutoLockReason.SessionLock);
         }
     }
 
@@ -124,8 +154,9 @@ public class AutoLockService : IDisposable
 
         if (e.Mode == PowerModes.Suspend)
         {
+            if (Blocked()) return;
             IsLocked = true;
-            AutoLockTriggered?.Invoke();
+            AutoLockTriggered?.Invoke(AutoLockReason.Sleep);
         }
     }
 

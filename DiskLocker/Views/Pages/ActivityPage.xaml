@@ -1,0 +1,137 @@
+<UserControl x:Class="DiskLocker.Views.Pages.ActivityPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:DiskLocker.Views">
+    <UserControl.Resources>
+        <v:PillBrushConverter x:Key="PillBrush" />
+        <v:BoolToVisibilityConverter x:Key="BoolVis" />
+
+        <!-- 事件时间线行：时间 + 语义圆点 + 标题 + 详情 -->
+        <DataTemplate x:Key="EventRowTemplate">
+            <Border Padding="18,12" CornerRadius="12" Margin="0,1">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsFailureRow}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource PillDangerBgBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="56" />
+                        <ColumnDefinition Width="40" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="{Binding TimeText}"
+                               FontFamily="{DynamicResource MonoFontFamily}" FontSize="12"
+                               Foreground="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" />
+
+                    <Grid Grid.Column="1" Width="30" Height="30" VerticalAlignment="Center">
+                        <Ellipse Fill="{Binding SeverityBrushKey, Converter={StaticResource PillBrush}, ConverterParameter=bg}"
+                                 Stroke="{Binding SeverityBrushKey, Converter={StaticResource PillBrush}, ConverterParameter=border}"
+                                 StrokeThickness="1" />
+                        <TextBlock Text="{Binding Glyph}"
+                                   FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"
+                                   Foreground="{Binding SeverityBrushKey, Converter={StaticResource PillBrush}, ConverterParameter=text}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0">
+                        <TextBlock Text="{Binding Title}" Style="{StaticResource CardTitle}" />
+                        <TextBlock Text="{Binding Detail}" Style="{StaticResource MetaText}" Margin="0,3,0,0"
+                                   ToolTip="{Binding FullTimeText}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer Style="{StaticResource AppScrollViewer}"
+                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="30,22,30,30">
+
+            <!-- ============ 页头 + 导出 ============ -->
+            <Grid>
+                <StackPanel>
+                    <TextBlock Text="活动记录" Style="{StaticResource PageHeader}" />
+                    <TextBlock Text="最近的锁定、解锁与自动保护事件，全部记录在本地。"
+                               Style="{StaticResource PageSubHeader}" />
+                </StackPanel>
+                <Button Style="{StaticResource SecondaryButton}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="0,4,0,0" Click="Export_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="导出记录" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- ============ 筛选 + 风险提示 ============ -->
+            <Grid Margin="0,20,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox x:Name="KindFilter" Style="{StaticResource ModernComboBox}" Width="150"
+                              SelectionChanged="Filter_Changed" />
+                    <ComboBox x:Name="RangeFilter" Style="{StaticResource ModernComboBox}" Width="136"
+                              Margin="10,0,0,0" SelectionChanged="Filter_Changed" />
+                </StackPanel>
+                <Border x:Name="RiskPill" Style="{StaticResource Pill}" HorizontalAlignment="Right"
+                        Background="{DynamicResource PillWarnBgBrush}"
+                        BorderBrush="{DynamicResource PillWarnBorderBrush}"
+                        Visibility="Collapsed">
+                    <TextBlock x:Name="RiskPillText" Text="" FontSize="11.5" FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource PillWarnTextBrush}" />
+                </Border>
+            </Grid>
+
+            <!-- ============ 统计卡（三张等高） ============ -->
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="14" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="14" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Style="{StaticResource Card}" Padding="18,16" MinHeight="82">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="StatToday" Text="0" FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="今日事件" Style="{StaticResource MetaText}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="18,16" MinHeight="82">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="StatAutoLock" Text="0" FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="自动锁定" Style="{StaticResource MetaText}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="4" Style="{StaticResource Card}" Padding="18,16" MinHeight="82">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="StatWrongPassword" Text="0" FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource WarnBrush}" />
+                        <TextBlock Text="密码错误" Style="{StaticResource MetaText}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ============ 时间线 ============ -->
+            <Border Style="{StaticResource Card}" Padding="6,8" Margin="0,16,0,0">
+                <StackPanel>
+                    <ItemsControl x:Name="EventList" ItemTemplate="{StaticResource EventRowTemplate}" />
+                    <TextBlock x:Name="EmptyText" Style="{StaticResource MetaText}" TextAlignment="Center"
+                               Margin="0,26" Visibility="Collapsed"
+                               Text="这个筛选条件下还没有记录。锁定或解锁一次硬盘就会出现在这里。" />
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
